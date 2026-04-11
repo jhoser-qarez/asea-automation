@@ -1,0 +1,17 @@
+# Dependencias
+node_modules/
+
+# Resultados de tests
+test-results/
+playwright-report/
+
+# Credenciales y datos sensibles
+tests/fixtures/credentials.ts
+tests/fixtures/userData.ts
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
