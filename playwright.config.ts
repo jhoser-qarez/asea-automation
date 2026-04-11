@@ -27,7 +27,7 @@ export default defineConfig({
 
   use: {
     baseURL: "https://shop.aseastage.com/",
-    headless: isCI, // ✅ true en CI, false en local
+    headless: false,
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     trace: "on-first-retry",

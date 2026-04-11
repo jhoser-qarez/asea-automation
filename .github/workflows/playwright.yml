@@ -11,30 +11,29 @@ on:
 jobs:
   test:
     name: 🎭 Playwright Tests
-    runs-on: ubuntu-latest # ✅ corre en Linux (gratis en GitHub)
+    runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
-      # 1. Descargar el código
       - name: 📥 Checkout código
         uses: actions/checkout@v4
 
-      # 2. Instalar Node.js
       - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "18"
           cache: "npm"
 
-      # 3. Instalar dependencias
       - name: 📚 Instalar dependencias
         run: npm ci
 
-      # 4. Instalar browsers de Playwright
+      # ✅ Instalar xvfb para simular pantalla real
+      - name: 🖥️ Instalar Xvfb
+        run: sudo apt-get install -y xvfb
+
       - name: 🌐 Instalar browsers
         run: npx playwright install --with-deps chromium
 
-      # 5. Crear archivos de credenciales desde secrets
       - name: 🔐 Crear credentials.ts
         run: |
           cat > tests/fixtures/credentials.ts << 'EOF'
@@ -50,7 +49,6 @@ jobs:
           }
           EOF
 
-      # 6. Crear userData.ts desde secrets
       - name: 👤 Crear userData.ts
         run: |
           cat > tests/fixtures/userData.ts << 'EOF'
@@ -82,25 +80,24 @@ jobs:
           }
           EOF
 
-      # 7. Correr los tests
+      # ✅ Correr con xvfb-run para simular pantalla real
       - name: 🧪 Correr tests de Playwright
-        run: npx playwright test --project=chromium
+        run: xvfb-run --auto-servernum -- npx playwright test --project=chromium
         env:
           CI: true
+          DISPLAY: ":99"
 
-      # 8. Subir reporte HTML
       - name: 📊 Subir reporte
         uses: actions/upload-artifact@v4
-        if: always() # ✅ sube el reporte siempre, aunque fallen
+        if: always()
         with:
           name: playwright-report
           path: playwright-report/
-          retention-days: 30 # guarda el reporte 30 días
+          retention-days: 30
 
-      # 9. Subir resultados de tests fallidos
       - name: 📸 Subir evidencias de fallos
         uses: actions/upload-artifact@v4
-        if: failure() # ✅ solo si hay fallos
+        if: failure()
         with:
           name: test-results
           path: test-results/
