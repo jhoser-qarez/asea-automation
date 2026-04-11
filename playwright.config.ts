@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+const isCI = !!process.env["CI"];
 
 export default defineConfig({
   testDir: "./tests",
@@ -26,7 +27,7 @@ export default defineConfig({
 
   use: {
     baseURL: "https://shop.aseastage.com/",
-    headless: false, // verás el navegador abierto (ideal para aprender)
+    headless: isCI, // ✅ true en CI, false en local
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     trace: "on-first-retry",
