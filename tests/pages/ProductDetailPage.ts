@@ -1,28 +1,32 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class ProductDetailPage {
   readonly page: Page;
 
   // 🎯 Locators
-  readonly checkboxCart:         Locator;
+  readonly checkboxCart: Locator;
   readonly checkboxSubscription: Locator;
-  readonly btnPlus:              Locator;
-  readonly btnMinus:             Locator;
-  readonly inputQuantity:        Locator;
-  readonly btnAddToCart:         Locator;
+  readonly btnPlus: Locator;
+  readonly btnMinus: Locator;
+  readonly inputQuantity: Locator;
+  readonly btnAddToCart: Locator;
 
   constructor(page: Page) {
     this.page = page;
 
     // ✅ Por id (únicos en la página)
-    this.checkboxCart         = page.locator('#purchaseOption-cart');
-    this.checkboxSubscription = page.locator('#purchaseOption-suscriptionBox');
+    this.checkboxCart = page.locator("#purchaseOption-cart");
+    this.checkboxSubscription = page.locator("#purchaseOption-suscriptionBox");
+
+    const productDetail = page
+      .locator('[data-cy="modify-product-from-detail"]')
+      .locator("..");
 
     // ✅ Por data-cy (estables)
-    this.btnPlus       = page.locator('[data-cy="plus-box"]');
-    this.btnMinus      = page.locator('[data-cy="minus-box"]');
-    this.inputQuantity = page.locator('[data-cy="quantity-field"]');
-    this.btnAddToCart  = page.locator('[data-cy="modify-product-from-detail"]');
+    this.btnPlus = page.locator('[data-cy="plus-box"]').first();
+    this.btnMinus = page.locator('[data-cy="minus-box"]').first();
+    this.inputQuantity = page.locator('[data-cy="quantity-field"]').first();
+    this.btnAddToCart = page.locator('[data-cy="modify-product-from-detail"]');
   }
 
   // ✅ Verificar que estamos en la página de detalle
@@ -32,8 +36,8 @@ export class ProductDetailPage {
   }
 
   // ✅ Seleccionar tipo de compra
-  async selectPurchaseType(type: 'cart' | 'subscription') {
-    if (type === 'cart') {
+  async selectPurchaseType(type: "cart" | "subscription") {
+    if (type === "cart") {
       await this.checkboxCart.check({ force: true });
     } else {
       await this.checkboxSubscription.check({ force: true });
@@ -43,7 +47,9 @@ export class ProductDetailPage {
   // ✅ Establecer cantidad manualmente
   async setQuantity(quantity: number) {
     await this.inputQuantity.clear();
-    await this.inputQuantity.pressSequentially(quantity.toString(), { delay: 100 });
+    await this.inputQuantity.pressSequentially(quantity.toString(), {
+      delay: 100,
+    });
   }
 
   // ✅ Aumentar cantidad con el botón +
@@ -66,7 +72,7 @@ export class ProductDetailPage {
   }
 
   // ✅ Flujo completo: seleccionar tipo + cantidad + agregar
-  async addProductToCart(type: 'cart' | 'subscription', quantity: number = 1) {
+  async addProductToCart(type: "cart" | "subscription", quantity: number = 1) {
     await this.verifyPageLoaded();
     await this.selectPurchaseType(type);
     await this.setQuantity(quantity);

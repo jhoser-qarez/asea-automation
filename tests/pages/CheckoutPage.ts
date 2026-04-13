@@ -183,8 +183,35 @@ export class CheckoutPage {
 
   // ✅ Billing Address TODAY'S ORDER
   // Por defecto ya viene "Use my shipping address" marcado
-  async verifyShippingAddressSelected() {
-    await expect(this.labelUseShippingAddress).toBeVisible();
+
+  async verifyTodayOrderBillingAddress() {
+    const isChecked = await this.page.evaluate(() => {
+      const inputs = document.querySelectorAll('input[value="radio-1"]');
+      // El segundo radio-1 es el de suscripción
+      const last = inputs[inputs.length - 1];
+      return last?.getAttribute("aria-checked");
+    });
+
+    if (isChecked !== "true") {
+      await this.labelUseShippingAddress.click();
+    }
+    console.log("✅ Billing address Today Order = mismo del shipping address");
+  }
+
+  // ✅Verificar billing address suscripción
+  // Por defecto ya viene "Use my shipping address" marcado
+  async verifySubscriptionBillingAddress() {
+    const isChecked = await this.page.evaluate(() => {
+      const inputs = document.querySelectorAll('input[value="radio-1"]');
+      // El segundo radio-1 es el de suscripción
+      const last = inputs[inputs.length - 1];
+      return last?.getAttribute("aria-checked");
+    });
+
+    if (isChecked !== "true") {
+      await this.labelBoxUseSameAddress.click();
+    }
+    console.log("✅ Billing address suscripción = misma dirección de hoy");
   }
 
   // ✅ Subscription: usar mismo método de pago
@@ -205,7 +232,6 @@ export class CheckoutPage {
 
   // ✅ Marcar checkbox personal consumption
   async checkPersonalConsumption() {
-    // ✅ evaluate en lugar de getAttribute
     const isChecked = await this.page.evaluate(() => {
       const inputs = document.querySelectorAll('input[role="checkbox"]');
       const last = inputs[inputs.length - 1];
@@ -213,7 +239,32 @@ export class CheckoutPage {
     });
 
     if (isChecked !== "true") {
-      await this.labelPersonalConsumption.click();
+      console.log("⏳ Marcando personal consumption...");
+
+      // ✅ Clic + esperar API
+      await Promise.all([
+        this.page.waitForResponse(
+          (response) => response.url().includes("ProductsWillNotBeResold"),
+          { timeout: 15000 },
+        ),
+        this.labelPersonalConsumption.click(),
+      ]);
+
+      // ✅ Esperar que aparezca el loading
+      const loadingSpinner = this.page.locator(".loading-view");
+      await expect(loadingSpinner)
+        .toBeVisible({ timeout: 5000 })
+        .catch(() => {
+          console.log("⏭️ Loading muy rápido, continuando...");
+        });
+
+      // ✅ Esperar que desaparezca el loading
+      await expect(loadingSpinner).not.toBeVisible({ timeout: 15000 });
+
+      // ✅ Esperar networkidle
+      await this.page.waitForLoadState("networkidle", { timeout: 15000 });
+
+      console.log("✅ Recálculo completado, montos actualizados");
     }
   }
 
@@ -286,7 +337,7 @@ export class CheckoutPage {
       return "";
     }
   }
-  // ✅ Flujo completo retorna los totales
+
   async completeCheckout(card: {
     name: string;
     number: string;
@@ -297,8 +348,33 @@ export class CheckoutPage {
     await this.verifyPageLoaded();
     await this.selectCreditCardPayment();
     await this.fillCardDetails(card);
-    //await this.verifyShippingAddressSelected();
+    await this.verifyTodayOrderBillingAddress();
+    await this.verifySubscriptionBillingAddress();
+    await this.checkPersonalConsumption();
+
+    // ✅ Capturamos ANTES de hacer clic en checkout
+    const orderTotal = await this.captureOrderTotal();
+    const subscriptionTotal = await this.captureSubscriptionTotal();
+
+    await this.placeOrder();
+
+    // ✅ Retornamos los totales para usarlos en CompletePage
+    return { orderTotal, subscriptionTotal };
+  }
+
+  async completeCheckoutOnlySuscriptionType(card: {
+    name: string;
+    number: string;
+    expMonth: string;
+    expYear: string;
+    cvv: string;
+  }): Promise<{ orderTotal: string; subscriptionTotal: string }> {
+    await this.verifyPageLoaded();
+    await this.selectCreditCardPayment();
     await this.verifySubscriptionSamePayment();
+    await this.fillCardDetails(card);
+    //await this.verifyShippingAddressSelected();
+
     //await this.checkPersonalConsumption();
 
     // ✅ Capturamos ANTES de hacer clic en checkout

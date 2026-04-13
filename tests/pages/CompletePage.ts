@@ -142,6 +142,22 @@ export class CompletePage {
     await this.verifyOrderNumber();
     //await this.verifyOrderDate();
     //await this.verifyDownloadReceiptLink();
+    await this.verifyOrderTotal(totals.orderTotal);
+    await this.verifySubscriptionTotal(totals.subscriptionTotal);
+  }
+  // ✅ Verificación completa incluyendo totales
+  async verifyCompleteSuscripcion(
+    firstName: string,
+    totals: {
+      orderTotal: string;
+      subscriptionTotal: string;
+    },
+  ) {
+    await this.verifyPageLoaded();
+    await this.verifyConfirmationMessage(firstName);
+    await this.verifyOrderNumber();
+    //await this.verifyOrderDate();
+    //await this.verifyDownloadReceiptLink();
     //await this.verifyOrderTotal(totals.orderTotal);
     await this.verifySubscriptionTotal(totals.subscriptionTotal);
   }

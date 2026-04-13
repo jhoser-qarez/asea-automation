@@ -1,6 +1,6 @@
 export const products = {
   default: {
-    name: 'Deluxe Essentials Subscription Bundle',
-    url: '/products/5812',
-  }
-}
+    name: "VIA™ LifeMax",
+    url: "/products/2399",
+  },
+};

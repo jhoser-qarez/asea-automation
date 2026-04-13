@@ -10,8 +10,10 @@ import { users } from "../fixtures/credentials";
 import { products } from "../fixtures/productData";
 import { userInfo } from "../fixtures/userData";
 
-test.describe("Orden completa - Dist Logueado", () => {
-  test("Flujo completo: Solo producto de suscripcion", async ({ page }) => {
+test.describe("Orden con Today Order + Suscripción - ASEA Shop", () => {
+  test("Flujo completo: mismo producto en Order y Suscripción", async ({
+    page,
+  }) => {
     const loginPage = new LoginPage(page);
     const productsPage = new ProductsPage(page);
     const productDetailPage = new ProductDetailPage(page);
@@ -27,53 +29,63 @@ test.describe("Orden completa - Dist Logueado", () => {
       await loginPage.verifyLoginSuccess(users.valid.username);
     });
 
-    // 🛍️ PASO 2: Ir a productos y seleccionar uno
+    // 🛍️ PASO 2: Seleccionar producto
     await test.step("Seleccionar producto", async () => {
       await productsPage.goto();
       await productsPage.verifyPageLoaded();
       await productsPage.selectProductByName(products.default.name);
-
-      // ✅ Verificar que navegamos al detalle del producto
       await expect(page).toHaveURL(/\/products\/\d+/);
     });
 
-    // 🛒 PASO 3: Agregar al carrito
-    await test.step("Agregar al carrito", async () => {
-      await productDetailPage.addProductToCart("subscription", 1);
+    // 🛒 PASO 3: Agregar a Today's Order
+    await test.step("Agregar a Today's Order", async () => {
+      await productDetailPage.selectPurchaseType("cart");
+      await productDetailPage.setQuantity(1);
+      await productDetailPage.addToCart();
     });
 
-    // 🧾 PASO 4: Verificar modal y proceder al checkout
-    await test.step("Verificar modal del carrito", async () => {
+    // 🧾 PASO 4: Verificar modal y cerrar
+    await test.step("Verificar modal Today's Order y cerrar", async () => {
       await cartModalPage.verifyModalVisible();
-      await cartModalPage.verifyProductInSubscription(products.default.name);
+      await cartModalPage.verifyProductInCart(products.default.name);
+      await cartModalPage.closeModal();
+    });
+
+    // 🔄 PASO 5: Agregar a Suscripción
+    await test.step("Agregar a Suscripción", async () => {
+      await expect(page).toHaveURL(/\/products\/\d+/);
+      await productDetailPage.selectPurchaseType("subscription");
+      await productDetailPage.setQuantity(1);
+      await productDetailPage.addToCart();
+    });
+
+    // 🧾 PASO 6: Verificar modal con ambas secciones → Checkout
+    await test.step("Verificar modal con Order y Suscripción", async () => {
+      await cartModalPage.verifyBothSections(products.default.name);
       await cartModalPage.proceedToCheckout();
     });
 
-    // 📋 PASO 5: Página Info
+    //📋 PASO 7: Página Info
     await test.step("Llenar información y dirección", async () => {
       await infoPage.verifyPageLoaded();
+
       await infoPage.completeInfoPage(
         userInfo.address,
         userInfo.basic,
-        //userInfo.shipping.order,
+        userInfo.shipping.order,
         userInfo.shipping.subscription,
       );
     });
 
-    // 💳 PASO 6: Checkout
+    // 💳 PASO 8: Checkout
     let totals: { orderTotal: string; subscriptionTotal: string };
     await test.step("Completar pago", async () => {
-      totals = await checkoutPage.completeCheckoutOnlySuscriptionType(
-        userInfo.card,
-      );
+      totals = await checkoutPage.completeCheckout(userInfo.card);
     });
 
-    // 🎉 PASO 7: Confirmación
+    // 🎉 PASO 9: Confirmación
     await test.step("Verificar confirmación de orden", async () => {
-      await completePage.verifyCompleteSuscripcion(
-        userInfo.basic.firstName,
-        totals,
-      );
+      await completePage.verifyCompleteOrder(userInfo.basic.firstName, totals);
     });
   });
 });

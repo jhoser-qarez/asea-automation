@@ -1,38 +1,55 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 export class CartModalPage {
   readonly page: Page;
 
   // 🎯 Locators
-  readonly modal:                  Locator;
-  readonly btnClose:               Locator;
-  readonly productNameInCart:      Locator;
-  readonly productNameInSubs:      Locator;
-  readonly orderTotalAmount:       Locator;
-  readonly subscriptionTotal:      Locator;
-  readonly btnContinueShopping:    Locator;
-  readonly btnCheckout:            Locator;
+  readonly modal: Locator;
+  readonly btnClose: Locator;
+  readonly productNameInCart: Locator;
+  readonly productNameInSubs: Locator;
+  readonly orderTotalAmount: Locator;
+  readonly subscriptionTotal: Locator;
+  readonly btnContinueShopping: Locator;
+  readonly btnCheckout: Locator;
 
   constructor(page: Page) {
     this.page = page;
 
     // ✅ Por data-cy
-    this.modal             = page.locator('[data-cy="summary-cart-displayed"]');
-    this.btnClose          = page.locator('[data-cy="summary-cart-close-btn"]');
-    this.productNameInCart = page.locator('[data-cy="row-summary-cart-name-product"]');
-    this.productNameInSubs = page.locator('[data-cy="row-summary-box-name-product"]');
-    this.orderTotalAmount  = page.locator('[data-cy="summary-order-totalAmount"]');
-    this.subscriptionTotal = page.locator('[data-cy="summary-subscription-totalAmount"]');
+    this.modal = page.locator('[data-cy="summary-cart-displayed"]');
+    this.btnClose = page.locator('[data-cy="summary-cart-close-btn"]');
+    this.productNameInCart = page.locator(
+      '[data-cy="row-summary-cart-name-product"]',
+    );
+    this.productNameInSubs = page.locator(
+      '[data-cy="row-summary-box-name-product"]',
+    );
+    this.orderTotalAmount = page.locator(
+      '[data-cy="summary-order-totalAmount"]',
+    );
+    this.subscriptionTotal = page.locator(
+      '[data-cy="summary-subscription-totalAmount"]',
+    );
 
     // ✅ Por texto (no tienen data-cy)
-    this.btnContinueShopping = page.getByRole('button', { name: 'Continue Shopping' });
-    this.btnCheckout         = page.getByRole('button', { name: 'Checkout' });
+    this.btnContinueShopping = page.getByRole("button", {
+      name: "Continue Shopping",
+    });
+    this.btnCheckout = page.getByRole("button", { name: "Checkout" });
   }
 
   // ✅ Verificar que el modal está visible
   async verifyModalVisible() {
     await expect(this.modal).toBeVisible();
     await expect(this.btnCheckout).toBeVisible();
+  }
+
+  // ✅ Cerrar modal sin ir al checkout
+  async closeModal() {
+    await this.btnClose.click();
+    await expect(this.modal).not.toBeVisible({ timeout: 5000 });
+    console.log("✅ Modal cerrado");
   }
 
   // ✅ Verificar producto en la orden normal
@@ -43,6 +60,14 @@ export class CartModalPage {
   // ✅ Verificar producto en suscripción
   async verifyProductInSubscription(productName: string) {
     await expect(this.productNameInSubs).toContainText(productName);
+  }
+
+  // ✅ Verificar ambas secciones
+  async verifyBothSections(productName: string) {
+    await this.verifyModalVisible();
+    await this.verifyProductInCart(productName);
+    await this.verifyProductInSubscription(productName);
+    console.log("✅ Producto en ambas secciones del carrito");
   }
 
   // ✅ Verificar el total de la orden
