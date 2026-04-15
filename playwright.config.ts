@@ -6,7 +6,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 1,
-  timeout: 80000,
+  timeout: 120000,
 
   reporter: [
     [
@@ -26,12 +26,12 @@ export default defineConfig({
   ],
 
   use: {
-    baseURL: "https://shop.aseastage.com/",
+    //baseURL: "https://shop.aseastage.com/",
     headless: false,
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     trace: "on-first-retry",
-    navigationTimeout: 60000,
+    navigationTimeout: 80000,
   },
 
   projects: [

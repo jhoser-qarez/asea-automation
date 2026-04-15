@@ -1,4 +1,5 @@
 import { Page, Locator, expect } from "@playwright/test";
+import { urls } from "../fixtures/urls";
 
 export class LoginPage {
   readonly page: Page;
@@ -29,7 +30,7 @@ export class LoginPage {
   async goto() {
     await this.page.context().clearCookies();
     await this.page.context().clearPermissions();
-    await this.page.goto("/");
+    await this.page.goto(urls.shop.login);
   }
 
   async login(username: string, password: string) {

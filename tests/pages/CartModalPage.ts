@@ -12,6 +12,7 @@ export class CartModalPage {
   readonly subscriptionTotal: Locator;
   readonly btnContinueShopping: Locator;
   readonly btnCheckout: Locator;
+  readonly btnNext: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -37,12 +38,18 @@ export class CartModalPage {
       name: "Continue Shopping",
     });
     this.btnCheckout = page.getByRole("button", { name: "Checkout" });
+    this.btnNext = page.getByRole("button", { name: "Next" });
   }
 
   // ✅ Verificar que el modal está visible
   async verifyModalVisible() {
     await expect(this.modal).toBeVisible();
     await expect(this.btnCheckout).toBeVisible();
+  }
+  async verifyModalVisibleOnEnroll() {
+    await this.page.waitForTimeout(3000);
+    await expect(this.modal).toBeVisible();
+    await expect(this.btnNext).toBeVisible();
   }
 
   // ✅ Cerrar modal sin ir al checkout
@@ -85,5 +92,10 @@ export class CartModalPage {
   async proceedToCheckout() {
     await this.btnCheckout.click();
     await expect(this.page).toHaveURL(/\/info/);
+  }
+
+  async proceedToNextStep() {
+    await this.btnNext.click();
+    console.log("✅ Continuando al siguiente paso...");
   }
 }

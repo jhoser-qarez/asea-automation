@@ -1,24 +1,25 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
+import { urls } from "../fixtures/urls";
 
 export class ProductsPage {
   readonly page: Page;
 
   // 🎯 Locators
-  readonly productNames:      Locator;
-  readonly productCards:      Locator;
-  readonly btnViewProduct:    Locator;
+  readonly productNames: Locator;
+  readonly productCards: Locator;
+  readonly btnViewProduct: Locator;
 
   constructor(page: Page) {
     this.page = page;
 
     // ✅ Selectores con data-cy (estables)
-    this.productNames   = page.locator('[data-cy="card-info-name"]');
-    this.productCards   = page.locator('a[data-cy="view-details"]:has(button)');
+    this.productNames = page.locator('[data-cy="card-info-name"]');
+    this.productCards = page.locator('a[data-cy="view-details"]:has(button)');
     this.btnViewProduct = page.locator('a[data-cy="view-details"]:has(button)');
   }
 
   async goto() {
-    await this.page.goto('/products?m=7');
+    await this.page.goto(urls.shop.products);
   }
 
   // ✅ Esperar que la página cargue
@@ -28,9 +29,11 @@ export class ProductsPage {
 
   // ✅ Seleccionar producto por nombre
   async selectProductByName(productName: string) {
-    await this.page.locator('a[data-cy="view-details"]', {
-      hasText: productName
-    }).click();
+    await this.page
+      .locator('a[data-cy="view-details"]', {
+        hasText: productName,
+      })
+      .click();
   }
 
   // ✅ Seleccionar el primer producto
@@ -41,11 +44,13 @@ export class ProductsPage {
   // ✅ Hacer hover y clic en View Product
   async hoverAndViewProduct(productName: string) {
     const product = this.page.locator('[data-cy="card-info-name"]', {
-      hasText: productName
+      hasText: productName,
     });
     await product.hover();
-    await this.page.locator('a[data-cy="view-details"]:has(button)', {
-      hasText: productName
-    }).click();
+    await this.page
+      .locator('a[data-cy="view-details"]:has(button)', {
+        hasText: productName,
+      })
+      .click();
   }
 }

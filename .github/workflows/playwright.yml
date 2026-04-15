@@ -45,6 +45,10 @@ jobs:
             invalid: {
               username: 'usuario_falso',
               password: 'password_falso',
+            },
+            oscar: {
+              username: '${{ secrets.OSCAR_USERNAME }}',
+              password: '${{ secrets.OSCAR_PASSWORD }}',
             }
           }
           EOF
