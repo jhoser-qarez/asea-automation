@@ -99,6 +99,30 @@ export class InfoPage {
     await expect(this.inputEmail).toBeVisible();
   }
 
+  // ✅ Llenar datos básicos (para usuarios nuevos sin datos precargados)
+  async fillBasicInfo(data: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+  }) {
+    await this.inputEmail.clear();
+    await this.inputEmail.pressSequentially(data.email, { delay: 100 });
+
+    await this.inputFirstName.clear();
+    await this.inputFirstName.pressSequentially(data.firstName, { delay: 100 });
+
+    await this.inputLastName.clear();
+    await this.inputLastName.pressSequentially(data.lastName, { delay: 100 });
+
+    if (data.phone) {
+      await this.inputPhone.clear();
+      await this.inputPhone.pressSequentially(data.phone, { delay: 100 });
+    }
+
+    console.log(`✅ Basic info llenada: ${data.email}`);
+  }
+
   // ✅ Verificar datos básicos precargados (no llenar)
   async verifyBasicInfoPreloaded(data: {
     email: string;

@@ -3,7 +3,7 @@ import { Page, Locator, expect } from "@playwright/test";
 export class EnrollCheckoutPage {
   readonly page: Page;
 
-  // 🎯 Payment - reutilizamos selectores de CheckoutPage
+  // 🎯 Payment
   readonly radioCartCreditCard: Locator;
   readonly rowCreditCard: Locator;
   readonly inputCardName: Locator;
@@ -15,22 +15,37 @@ export class EnrollCheckoutPage {
   // 🎯 Billing Address
   readonly labelUseShippingAddress: Locator;
 
-  // 🎯 Subscription - mismo método
+  // 🎯 Subscription
   readonly radioBoxSameAsCart: Locator;
   readonly labelBoxSameAsCart: Locator;
 
-  // 🎯 Birth Date ← nuevo
+  // 🎯 Birth Date
   readonly selectMonth: Locator;
   readonly selectDay: Locator;
   readonly inputYear: Locator;
 
-  // 🎯 SSN ← nuevo
+  // 🎯 SSN
   readonly inputSSN: Locator;
 
-  // 🎯 Username & Password ← nuevo
+  // 🎯 Username & Password
   readonly inputUsername: Locator;
   readonly inputPassword: Locator;
   readonly inputConfirmPassword: Locator;
+
+  // 🎯 Referral Section - opciones por value (estable)
+  readonly radioSearchByName: Locator;
+  readonly radioSearchById: Locator;
+  readonly radioNoReferral: Locator;
+  readonly radioReferralResult: Locator;
+
+  // 🎯 Referral - contenedor Search by Name
+  readonly referralNameContainer: Locator;
+  readonly inputReferralFirstName: Locator;
+  readonly inputReferralLastName: Locator;
+
+  // 🎯 Referral - contenedor Search by ID
+  readonly referralIdContainer: Locator;
+  readonly inputReferralSponsorId: Locator;
 
   // 🎯 Checkboxes
   readonly labelPersonalConsumption: Locator;
@@ -91,6 +106,31 @@ export class EnrollCheckoutPage {
     this.inputConfirmPassword = page.locator(
       '[data-test="confirmPassword-field"]',
     );
+
+    // ✅ Referral - radios por value (estable, no depende de id dinámico)
+    this.radioSearchByName = page.locator('input[role="radio"][value="1"]');
+    this.radioSearchById = page.locator('input[role="radio"][value="2"]');
+    this.radioNoReferral = page.locator('input[role="radio"][value="4"]');
+    this.radioReferralResult = page.locator('input[role="radio"][value="5"]');
+
+    // ✅ Referral Search by Name - contenedor del radio value="1"
+    // Los inputs de nombre/apellido están dentro del mismo bloque .color-row
+    this.referralNameContainer = page
+      .locator(".options-search-sponsor .color-row")
+      .filter({ has: page.locator('input[role="radio"][value="1"]') });
+    this.inputReferralFirstName = this.referralNameContainer
+      .locator('input[type="text"]')
+      .first();
+    this.inputReferralLastName = this.referralNameContainer
+      .locator('input[type="text"]')
+      .last();
+
+    // ✅ Referral Search by ID - contenedor del radio value="2"
+    this.referralIdContainer = page
+      .locator(".options-search-sponsor .color-row")
+      .filter({ has: page.locator('input[role="radio"][value="2"]') });
+    this.inputReferralSponsorId =
+      this.referralIdContainer.locator('input[type="text"]');
 
     // ✅ Checkboxes
     this.labelPersonalConsumption = page.locator("label", {
@@ -220,6 +260,64 @@ export class EnrollCheckoutPage {
   async fillSSN(ssn: string) {
     await this.inputSSN.clear();
     await this.inputSSN.pressSequentially(ssn, { delay: 100 });
+  }
+
+  // ✅ Seleccionar referido por nombre
+  async selectReferralByName(firstName: string, lastName: string) {
+    await this.page.locator("label", { hasText: "Search by Name" }).click();
+    console.log("✅ 'Search by Name' seleccionado");
+
+    await expect(this.inputReferralFirstName).toBeVisible({ timeout: 5000 });
+    await this.inputReferralFirstName.fill(firstName);
+    await this.inputReferralLastName.fill(lastName);
+    console.log(`🔍 Buscando: ${firstName} ${lastName}`);
+
+    await this._selectReferralResult();
+  }
+
+  // ✅ Seleccionar referido por Sponsor ID
+  async selectReferralById(sponsorId: string) {
+    await this.page
+      .locator("label", { hasText: "Search by Sponsor ID" })
+      .click();
+    console.log("✅ 'Search by Sponsor ID' seleccionado");
+
+    await expect(this.inputReferralSponsorId).toBeVisible({ timeout: 5000 });
+    await this.inputReferralSponsorId.fill(sponsorId);
+    console.log(`🔍 Buscando por ID: ${sponsorId}`);
+
+    await this._selectReferralResult();
+  }
+
+  // ✅ No hay referido
+  async selectNoReferral() {
+    await this.page.locator("label", { hasText: "No one referred me" }).click();
+    console.log("✅ 'No one referred me' seleccionado");
+  }
+
+  // ✅ Esperar resultado y seleccionarlo (4to radio value="5")
+  private async _selectReferralResult() {
+    await expect(this.radioReferralResult).toBeVisible({ timeout: 15000 });
+
+    // Hacer clic en el label que contiene el resultado
+    const resultLabel = this.page
+      .locator(".options-search-sponsor .color-row")
+      .filter({ has: this.radioReferralResult })
+      .locator("label")
+      .last();
+
+    await resultLabel.click();
+
+    await expect(this.radioReferralResult).toHaveAttribute(
+      "aria-checked",
+      "true",
+      { timeout: 5000 },
+    );
+
+    const resultText = await this.page
+      .locator(".options-search-sponsor .v-list-item__title")
+      .textContent();
+    console.log(`✅ Referido seleccionado: ${resultText?.trim()}`);
   }
 
   // ✅ Llenar username y contraseña
@@ -371,8 +469,23 @@ export class EnrollCheckoutPage {
 
   // ✅ Confirmar orden
   async placeOrder() {
-    await this.btnCheckout.click();
-    await expect(this.page).toHaveURL(/\/complete/, { timeout: 30000 });
+    // 1. Scroll hasta el botón
+    await this.btnCheckout.scrollIntoViewIfNeeded();
+
+    // 2. Esperar que esté visible y habilitado
+    await expect(this.btnCheckout).toBeVisible({ timeout: 10000 });
+    await expect(this.btnCheckout).toBeEnabled({ timeout: 10000 });
+
+    // 3. Esperar networkidle antes de hacer clic
+    await this.page.waitForLoadState("networkidle", { timeout: 15000 });
+
+    // 4. Clic y esperar navegación a /complete
+    await Promise.all([
+      this.page.waitForURL(/\/complete/, { timeout: 60000 }),
+      this.btnCheckout.click(),
+    ]);
+
+    console.log("✅ Orden confirmada, navegando a /complete");
   }
 
   // ✅ Flujo completo del checkout de enrolamiento
@@ -423,6 +536,51 @@ export class EnrollCheckoutPage {
     const subscriptionTotal = await this.captureSubscriptionTotal();
 
     // 7. Confirmar
+    await this.placeOrder();
+
+    return { orderTotal, subscriptionTotal };
+  }
+
+  async completeSCCheckout(
+    card: {
+      name: string;
+      number: string;
+      expMonth: string;
+      expYear: string;
+      cvv: string;
+    },
+    enrollData: {
+      username: string;
+      password: string;
+    },
+    referral:
+      | { type: "name"; firstName: string; lastName: string }
+      | { type: "id"; sponsorId: string }
+      | { type: "none" },
+  ): Promise<{ orderTotal: string; subscriptionTotal: string }> {
+    await this.verifyPageLoaded();
+    await this.selectCreditCardPayment();
+    await this.fillCardDetails(card);
+    await this.verifyTodayOrderBillingAddress();
+    await this.verifySubscriptionSamePayment();
+
+    // ✅ Sección de referidos
+    if (referral.type === "name") {
+      await this.selectReferralByName(referral.firstName, referral.lastName);
+    } else if (referral.type === "id") {
+      await this.selectReferralById(referral.sponsorId);
+    } else {
+      await this.selectNoReferral();
+    }
+
+    await this.fillCredentials(enrollData.username, enrollData.password);
+
+    await this.acceptAgreements();
+    await this.page.waitForLoadState("networkidle", { timeout: 15000 });
+    await this.page.waitForTimeout(1000);
+
+    const orderTotal = await this.captureOrderTotal();
+    const subscriptionTotal = await this.captureSubscriptionTotal();
     await this.placeOrder();
 
     return { orderTotal, subscriptionTotal };

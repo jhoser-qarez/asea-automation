@@ -30,9 +30,8 @@ export class ProductsPage {
   // ✅ Seleccionar producto por nombre
   async selectProductByName(productName: string) {
     await this.page
-      .locator('a[data-cy="view-details"]', {
-        hasText: productName,
-      })
+      .locator('a[data-cy="view-details"]')
+      .getByText(productName, { exact: true })
       .click();
   }
 

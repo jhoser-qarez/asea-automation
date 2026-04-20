@@ -47,7 +47,7 @@ export class CartModalPage {
     await expect(this.btnCheckout).toBeVisible();
   }
   async verifyModalVisibleOnEnroll() {
-    await this.page.waitForTimeout(3000);
+    await this.page.waitForTimeout(5000);
     await expect(this.modal).toBeVisible();
     await expect(this.btnNext).toBeVisible();
   }

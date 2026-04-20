@@ -5,6 +5,7 @@ export class EnrollCompletePage {
 
   // 🎯 Confirmación
   readonly confirmationMessage: Locator;
+  readonly confirmationMessageSC: Locator;
   readonly downloadReceiptLink: Locator;
 
   // 🎯 Enrollment Details
@@ -23,6 +24,9 @@ export class EnrollCompletePage {
     // ✅ Mensaje de bienvenida
     this.confirmationMessage = page.locator("div.white--text", {
       hasText: "welcome to Asea",
+    });
+    this.confirmationMessageSC = page.locator("div.white--text", {
+      hasText: "Your order has been received!",
     });
 
     // ✅ Download receipt
@@ -59,12 +63,25 @@ export class EnrollCompletePage {
     await expect(this.confirmationMessage).toBeVisible({ timeout: 30000 });
   }
 
+  async verifyPageLoadedSC() {
+    await expect(this.page).toHaveURL(/\/complete/, { timeout: 30000 });
+    await expect(this.confirmationMessageSC).toBeVisible({ timeout: 30000 });
+  }
+
   // ✅ Verificar mensaje de bienvenida
   async verifyWelcomeMessage(firstName: string) {
     await expect(this.confirmationMessage).toContainText(
       `Thank you, ${firstName}, and welcome to Asea!`,
     );
     console.log(`✅ Mensaje de bienvenida: Thank you, ${firstName}`);
+  }
+  async verifyConfirmationMessageSC(firstName: string) {
+    await expect(this.confirmationMessageSC).toContainText(
+      `Thank you, ${firstName}`,
+    );
+    await expect(this.confirmationMessageSC).toContainText(
+      "Your order has been received!",
+    );
   }
 
   // ✅ Verificar enrollment details
@@ -111,6 +128,19 @@ export class EnrollCompletePage {
     await this.verifyWelcomeMessage(firstName);
     await this.verifyEnrollmentDetails();
     await this.verifyDownloadReceiptLink();
+    await this.verifyOrderTotal(totals.orderTotal);
+    await this.verifySubscriptionTotal(totals.subscriptionTotal);
+  }
+
+  // ✅ Verificación completa
+  async verifyCompleteEnrollmentSC(
+    firstName: string,
+    totals: { orderTotal: string; subscriptionTotal: string },
+  ) {
+    await this.verifyPageLoadedSC();
+    //await this.verifyWelcomeMessage(firstName);
+    await this.verifyEnrollmentDetails();
+    //await this.verifyDownloadReceiptLink();
     await this.verifyOrderTotal(totals.orderTotal);
     await this.verifySubscriptionTotal(totals.subscriptionTotal);
   }
