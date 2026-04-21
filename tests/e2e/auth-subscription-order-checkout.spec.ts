@@ -10,7 +10,7 @@ import { users } from "../fixtures/credentials";
 import { products } from "../fixtures/productData";
 import { userInfo } from "../fixtures/userData";
 
-test.describe("Orden con Today Order + Suscripción - ASEA Shop", () => {
+test.describe("Orden con Today Order + Suscripción con Dist Logueado", () => {
   test("Flujo completo: mismo producto en Order y Suscripción", async ({
     page,
   }) => {
@@ -22,14 +22,14 @@ test.describe("Orden con Today Order + Suscripción - ASEA Shop", () => {
     const checkoutPage = new CheckoutPage(page);
     const completePage = new CompletePage(page);
 
-    // 🔐 PASO 1: Login
+    // PASO 1: Login
     await test.step("Login", async () => {
       await loginPage.goto();
       await loginPage.login(users.valid.username, users.valid.password);
       await loginPage.verifyLoginSuccess(users.valid.username);
     });
 
-    // 🛍️ PASO 2: Seleccionar producto
+    // PASO 2: Seleccionar producto
     await test.step("Seleccionar producto", async () => {
       await productsPage.goto();
       await productsPage.verifyPageLoaded();
@@ -37,21 +37,21 @@ test.describe("Orden con Today Order + Suscripción - ASEA Shop", () => {
       await expect(page).toHaveURL(/\/products\/\d+/);
     });
 
-    // 🛒 PASO 3: Agregar a Today's Order
+    // PASO 3: Agregar a Today's Order
     await test.step("Agregar a Today's Order", async () => {
       await productDetailPage.selectPurchaseType("cart");
       await productDetailPage.setQuantity(1);
       await productDetailPage.addToCart();
     });
 
-    // 🧾 PASO 4: Verificar modal y cerrar
+    // PASO 4: Verificar modal y cerrar
     await test.step("Verificar modal Today's Order y cerrar", async () => {
       await cartModalPage.verifyModalVisible();
       await cartModalPage.verifyProductInCart(products.default.name);
       await cartModalPage.closeModal();
     });
 
-    // 🔄 PASO 5: Agregar a Suscripción
+    //  PASO 5: Agregar a Suscripción
     await test.step("Agregar a Suscripción", async () => {
       await expect(page).toHaveURL(/\/products\/\d+/);
       await productDetailPage.selectPurchaseType("subscription");
@@ -59,13 +59,13 @@ test.describe("Orden con Today Order + Suscripción - ASEA Shop", () => {
       await productDetailPage.addToCart();
     });
 
-    // 🧾 PASO 6: Verificar modal con ambas secciones → Checkout
+    // PASO 6: Verificar modal con ambas secciones → Checkout
     await test.step("Verificar modal con Order y Suscripción", async () => {
       await cartModalPage.verifyBothSections(products.default.name);
       await cartModalPage.proceedToCheckout();
     });
 
-    //📋 PASO 7: Página Info
+    // PASO 7: Página Info
     await test.step("Llenar información y dirección", async () => {
       await infoPage.verifyPageLoaded();
 
@@ -77,19 +77,18 @@ test.describe("Orden con Today Order + Suscripción - ASEA Shop", () => {
       );
     });
 
-    // 💳 PASO 8: Checkout
+    //  PASO 8: Checkout
     let totals: { orderTotal: string; subscriptionTotal: string };
     await test.step("Completar pago", async () => {
       totals = await checkoutPage.completeCheckout(userInfo.card);
     });
 
-    // 🎉 PASO 9: Confirmación
+    // PASO 9: Confirmación
     await test.step("Verificar confirmación de orden", async () => {
       await completePage.verifyCompleteOrder(userInfo.basic.firstName, totals);
     });
   });
 
-  // ✅ Test 2: productos diferentes usando Continue Shopping
   test("Flujo completo:diferentes productos en Order y Suscripción", async ({
     page,
   }) => {
@@ -101,14 +100,14 @@ test.describe("Orden con Today Order + Suscripción - ASEA Shop", () => {
     const checkoutPage = new CheckoutPage(page);
     const completePage = new CompletePage(page);
 
-    // 🔐 PASO 1: Login
+    // PASO 1: Login
     await test.step("Login", async () => {
       await loginPage.goto();
       await loginPage.login(users.valid.username, users.valid.password);
       await loginPage.verifyLoginSuccess(users.valid.username);
     });
 
-    // 🛍️ PASO 2: Seleccionar producto para Today's Order
+    // PASO 2: Seleccionar producto para Today's Order
     await test.step("Seleccionar producto para Today's Order", async () => {
       await productsPage.goto();
       await productsPage.verifyPageLoaded();
@@ -116,14 +115,14 @@ test.describe("Orden con Today Order + Suscripción - ASEA Shop", () => {
       await expect(page).toHaveURL(/\/products\/\d+/);
     });
 
-    // 🛒 PASO 3: Agregar a Today's Order
+    // PASO 3: Agregar a Today's Order
     await test.step("Agregar a Today's Order", async () => {
       await productDetailPage.selectPurchaseType("cart");
       await productDetailPage.setQuantity(1);
       await productDetailPage.addToCart();
     });
 
-    // 🧾 PASO 4: Verificar modal y clic en Continue Shopping
+    // PASO 4: Verificar modal y clic en Continue Shopping
     await test.step("Verificar modal y continuar comprando", async () => {
       await cartModalPage.verifyModalVisible();
       await cartModalPage.verifyProductInCart(products.todayOrder.name);
@@ -133,21 +132,21 @@ test.describe("Orden con Today Order + Suscripción - ASEA Shop", () => {
       await expect(page).toHaveURL(/\/products/);
     });
 
-    // 🛍️ PASO 5: Seleccionar producto para Suscripción
+    // PASO 5: Seleccionar producto para Suscripción
     await test.step("Seleccionar producto para Suscripción", async () => {
       await productsPage.verifyPageLoaded();
       await productsPage.selectProductByName(products.subscription.name);
       await expect(page).toHaveURL(/\/products\/\d+/);
     });
 
-    // 🔄 PASO 6: Agregar a Suscripción
+    // PASO 6: Agregar a Suscripción
     await test.step("Agregar a Suscripción", async () => {
       await productDetailPage.selectPurchaseType("subscription");
       await productDetailPage.setQuantity(1);
       await productDetailPage.addToCart();
     });
 
-    // 🧾 PASO 7: Verificar modal con ambas secciones → Checkout
+    // PASO 7: Verificar modal con ambas secciones → Checkout
     await test.step("Verificar modal con ambos productos", async () => {
       await cartModalPage.verifyModalVisible();
       await cartModalPage.verifyProductInCart(products.todayOrder.name);
@@ -158,7 +157,7 @@ test.describe("Orden con Today Order + Suscripción - ASEA Shop", () => {
       await cartModalPage.proceedToCheckout();
     });
 
-    // 📋 PASO 8: Info
+    // PASO 8: Info
     await test.step("Llenar información y dirección", async () => {
       await infoPage.verifyPageLoaded();
       await infoPage.completeInfoPage(
@@ -169,13 +168,13 @@ test.describe("Orden con Today Order + Suscripción - ASEA Shop", () => {
       );
     });
 
-    // 💳 PASO 9: Checkout
+    // PASO 9: Checkout
     let totals: { orderTotal: string; subscriptionTotal: string };
     await test.step("Completar pago", async () => {
       totals = await checkoutPage.completeCheckout(userInfo.card);
     });
 
-    // 🎉 PASO 10: Confirmación
+    // PASO 10: Confirmación
     await test.step("Verificar confirmación de orden", async () => {
       await completePage.verifyCompleteOrder(userInfo.basic.firstName, totals);
     });

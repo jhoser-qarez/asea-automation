@@ -19,13 +19,13 @@ import {
   enrollmentSelection,
 } from "../fixtures/productData";
 
-test.describe("Enrolamiento de Distribuidor - ASEA", () => {
-  test("Login en Oscar y buscar distribuidor", async ({ page }) => {
+test.describe("Enrolamiento de Brand Partner", () => {
+  test("Flujo completo para enrolar un BP desde OSCAR", async ({ page }) => {
     const oscarLoginPage = new OscarLoginPage(page);
     const oscarSearchPage = new OscarSearchPage(page);
     const oscarSearchResultsPage = new OscarPopUpSearchResultsPage(page);
 
-    // 🔐 PASO 1: Login en Oscar
+    // PASO 1: Login en Oscar
     await test.step("Login en Oscar", async () => {
       await oscarLoginPage.gotoAndLogin(
         users.oscar.username,
@@ -33,30 +33,28 @@ test.describe("Enrolamiento de Distribuidor - ASEA", () => {
       );
     });
 
-    // 🔍 PASO 2: Buscar distribuidor
+    // PASO 2: Buscar distribuidor
     await test.step("Buscar distribuidor", async () => {
       await oscarSearchPage.searchByBrandPartnerId(distributor.brandPartnerId);
     });
-
+    // PASO 3: Verificar busqueda
     await test.step("Verificar resultados de búsqueda", async () => {
       await oscarSearchResultsPage.verifyModalVisible();
       await oscarSearchResultsPage.verifyDistributorInResults(
         distributor.brandPartnerId,
       );
     });
-
+    // PASO 4: Clic en Enroll
     let shopPage: Page;
-    // 🚀 PASO 4: Clic en Enroll
+
     await test.step("Hacer clic en Enroll", async () => {
       shopPage = await oscarSearchResultsPage.clickEnroll();
-
-      // ✅ Verificar que la URL de Shop tiene los parámetros correctos
       await expect(shopPage).toHaveURL(/sponsorId/);
       await expect(shopPage).toHaveURL(/at=true/);
       console.log(`✅ URL de enrolamiento: ${shopPage.url()}`);
     });
 
-    // 🛍️ PASO 5: Verificar Step 1 en Shop
+    // PASO 5: Verificar Step 1 en Shop
     await test.step("Verificar página de enrolamiento Step 1", async () => {
       const enrollStep1 = new EnrollStep1Page(shopPage);
       await enrollStep1.verifyPageLoaded();
@@ -64,13 +62,13 @@ test.describe("Enrolamiento de Distribuidor - ASEA", () => {
       await enrollStep1.verifySponsorName(distributor.sponsorName);
     });
 
-    // 🛒 PASO 6: Seleccionar pack
+    // PASO 6: Seleccionar pack
     await test.step("Seleccionar pack de enrolamiento", async () => {
       const enrollStep1 = new EnrollStep1Page(shopPage);
       await enrollStep1.addPackToCart(enrollmentSelection.pack.name);
     });
 
-    // PASO 7
+    // PASO 7: Verificar carrito
     await test.step("Verificar carrito y continuar al Step 2", async () => {
       const cartModal = new CartModalPage(shopPage);
       await cartModal.verifyModalVisibleOnEnroll();
@@ -78,7 +76,7 @@ test.describe("Enrolamiento de Distribuidor - ASEA", () => {
       await cartModal.proceedToNextStep();
     });
 
-    // 📦 PASO 8: Step 2 - Seleccionar suscripción
+    // PASO 8: Step 2 - Seleccionar suscripción
     await test.step("Step 2 - Seleccionar bundle de suscripción", async () => {
       const enrollStep2 = new EnrollStep2Page(shopPage);
       await enrollStep2.verifyPageLoaded();
@@ -89,7 +87,7 @@ test.describe("Enrolamiento de Distribuidor - ASEA", () => {
       );
     });
 
-    // 🧾 PASO 9: Modal Step 2
+    // PASO 9: Modal Step 2
     await test.step("Verificar modal Step 2 y continuar", async () => {
       const cartModal = new CartModalPage(shopPage);
       await cartModal.verifyModalVisibleOnEnroll();
@@ -100,12 +98,12 @@ test.describe("Enrolamiento de Distribuidor - ASEA", () => {
       await cartModal.proceedToNextStep();
     });
 
-    // 📋 PASO 10: Step 3 - Información y dirección
+    // PASO 10: Step 3 - Información y dirección
     await test.step("Step 3 - Llenar información", async () => {
       const enrollStep3 = new EnrollStep3Page(shopPage);
       const infoPage = new InfoPage(shopPage);
 
-      // ✅ Generar datos únicos para este enrolamiento
+      // Generar datos únicos para este enrolamiento
       const enrollData = generateEnrollData();
       console.log(`📧 Email generado: ${enrollData.email}`);
       console.log(`📞 Teléfono generado: ${enrollData.phone}`);
@@ -123,30 +121,30 @@ test.describe("Enrolamiento de Distribuidor - ASEA", () => {
       // Verificar perks
       await enrollStep3.verifyEnrollmentPerks();
 
-      // ✅ Llenar datos básicos con datos únicos
+      // Llenar datos básicos con datos únicos
       await enrollStep3.fillBasicInfo(enrollData);
 
-      // ✅ Llenar dirección (misma que usamos siempre)
+      // Llenar dirección
       await infoPage.fillShippingAddress(userInfo.address);
 
-      // ✅ Guardar dirección y esperar loading
+      // Guardar dirección y esperar loading
       await enrollStep3.saveAddress();
 
-      // ✅ Seleccionar shipping
+      // Seleccionar shipping
       await infoPage.selectOrderShipping(userInfo.shipping.order);
       await infoPage.selectSubscriptionShipping(userInfo.shipping.subscription);
 
-      // ✅ Continuar al checkout
+      // Continuar al checkout
       await enrollStep3.continueToCheckout();
     });
 
-    // 💳 PASO 11: Checkout del enrolamiento
+    // PASO 11: Checkout del enrolamiento
     let enrollTotals: { orderTotal: string; subscriptionTotal: string };
     let enrollData: ReturnType<typeof generateEnrollData>;
     await test.step("Checkout - Completar enrolamiento", async () => {
-      enrollData = generateEnrollData(); // ✅ guardar en variable externa
-      console.log(`📧 Email: ${enrollData.email}`);
-      console.log(`📞 Teléfono: ${enrollData.phone}`);
+      enrollData = generateEnrollData(); // guardar en variable externa
+      console.log(`Email: ${enrollData.email}`);
+      console.log(`Teléfono: ${enrollData.phone}`);
 
       const enrollCheckout = new EnrollCheckoutPage(shopPage);
       enrollTotals = await enrollCheckout.completeEnrollCheckout(
@@ -162,11 +160,11 @@ test.describe("Enrolamiento de Distribuidor - ASEA", () => {
       );
     });
 
-    // 🎉 PASO 12: Verificar confirmación del enrolamiento
+    //  PASO 12: Verificar confirmación del enrolamiento
     await test.step("Verificar confirmación del enrolamiento", async () => {
       const enrollComplete = new EnrollCompletePage(shopPage);
       await enrollComplete.verifyCompleteEnrollment(
-        enrollData.firstName, // ✅ viene del generateEnrollData()
+        enrollData.firstName, // viene del generateEnrollData()
         enrollTotals,
       );
     });

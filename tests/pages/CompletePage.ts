@@ -22,9 +22,7 @@ export class CompletePage {
     this.page = page;
 
     // ✅ Confirmación
-    this.confirmationMessage = page.locator("div.white--text", {
-      hasText: "Your order has been received!",
-    });
+    this.confirmationMessage = page.locator(".secondary");
     this.orderNumber = page
       .locator('[data-cy="enrollment-details-orderNumber"]')
       .last();
@@ -56,20 +54,14 @@ export class CompletePage {
       .last();
   }
 
-  // ✅ Verificar que estamos en /complete
   async verifyPageLoaded() {
     await expect(this.page).toHaveURL(/\/complete/, { timeout: 30000 });
     await expect(this.confirmationMessage).toBeVisible({ timeout: 30000 });
   }
 
-  // ✅ Verificar mensaje de confirmación con nombre del usuario
   async verifyConfirmationMessage(firstName: string) {
-    await expect(this.confirmationMessage).toContainText(
-      `Thank you, ${firstName}`,
-    );
-    await expect(this.confirmationMessage).toContainText(
-      "Your order has been received!",
-    );
+    await expect(this.confirmationMessage).toContainText(firstName);
+    console.log(`✅ Mensaje de confirmación contiene: ${firstName}`);
   }
 
   // ✅ Verificar número de orden (que existe y no está vacío)

@@ -54,7 +54,9 @@ export class InfoPage {
     this.inputZip = page.locator('[data-test="Zip-field"]');
 
     // ✅ Save Address y loading
-    this.btnSaveAddress = page.getByRole("button", { name: "SAVE ADDRESS" });
+    this.btnSaveAddress = page
+      .locator("div.row.justify-center button.primary")
+      .first();
     this.loadingSpinner = page.locator(".loading-view");
 
     // ✅ Shipping Method Order - por data-cy + texto
@@ -134,12 +136,20 @@ export class InfoPage {
     await expect(this.inputLastName).toHaveValue(data.lastName);
   }
 
+  async fillPhoneIfNeeded(phone?: string) {
+    if (phone) {
+      await this.inputPhone.clear();
+      await this.inputPhone.pressSequentially(phone, { delay: 100 });
+      console.log(`✅ Phone llenado: ${phone}`);
+    }
+  }
+
   // ✅ Llenar dirección de envío
   async fillShippingAddress(data: {
     address1: string;
     address2?: string;
     city: string;
-    state: string;
+    state?: string;
     zip: string;
   }) {
     await this.inputAddress1.clear();
@@ -153,9 +163,11 @@ export class InfoPage {
     await this.inputCity.clear();
     await this.inputCity.pressSequentially(data.city, { delay: 100 });
 
-    await this.inputState.clear();
-    await this.inputState.pressSequentially(data.state, { delay: 100 });
-    await this.page.getByText(data.state, { exact: true }).first().click();
+    if (data.state) {
+      await this.inputState.clear();
+      await this.inputState.pressSequentially(data.state, { delay: 100 });
+      await this.page.getByText(data.state, { exact: true }).first().click();
+    }
 
     await this.inputZip.clear();
     await this.inputZip.pressSequentially(data.zip, { delay: 100 });
@@ -213,19 +225,21 @@ export class InfoPage {
       address1: string;
       address2?: string;
       city: string;
-      state: string;
+      state?: string;
       zip: string;
     },
     basicInfo: {
       email: string;
       firstName: string;
       lastName: string;
+      phone?: string;
     },
     orderShipping: "standard" | "usps" = "standard",
     subscriptionShipping: "standard" | "usps" = "standard",
   ) {
     // 1. Verificar datos precargados
     await this.verifyBasicInfoPreloaded(basicInfo);
+    await this.fillPhoneIfNeeded(basicInfo.phone);
 
     // 2. Llenar dirección
     await this.fillShippingAddress(address);

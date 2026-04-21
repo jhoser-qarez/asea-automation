@@ -34,11 +34,15 @@ export class CartModalPage {
     );
 
     // ✅ Por texto (no tienen data-cy)
-    this.btnContinueShopping = page.getByRole("button", {
-      name: "Continue Shopping",
-    });
-    this.btnCheckout = page.getByRole("button", { name: "Checkout" });
-    this.btnNext = page.getByRole("button", { name: "Next" });
+    this.btnContinueShopping = page.locator(
+      ".checkout-page-button-continue button.v-btn--outlined",
+    );
+    this.btnCheckout = page.locator(
+      ".checkout-page-button-continue button.primary:not(.v-btn--outlined)",
+    );
+    this.btnNext = page.locator(
+      ".checkout-page-button-continue button.primary:not(.v-btn--outlined)",
+    );
   }
 
   // ✅ Verificar que el modal está visible
