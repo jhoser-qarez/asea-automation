@@ -47,8 +47,8 @@ export class CartModalPage {
 
   // ✅ Verificar que el modal está visible
   async verifyModalVisible() {
-    await expect(this.modal).toBeVisible();
-    await expect(this.btnCheckout).toBeVisible();
+    await expect(this.modal).toBeVisible({ timeout: 15000 });
+    await expect(this.btnCheckout).toBeVisible({ timeout: 15000 });
   }
   async verifyModalVisibleOnEnroll() {
     await this.page.waitForTimeout(5000);

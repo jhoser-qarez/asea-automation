@@ -215,7 +215,7 @@ export class InfoPage {
 
   // ✅ Continuar al checkout
   async continueToCheckout() {
-    await this.btnContinueToCheckout.click();
+    await this.btnContinueToCheckout.click({ timeout: 120000 });
     //await expect(this.page).toHaveURL(/\/checkout/);
   }
 
@@ -253,5 +253,21 @@ export class InfoPage {
 
     // 5. Continuar
     await this.continueToCheckout();
+  }
+
+  // Flujo de info para Will Call:
+  async completeInfoPageWillCall(basicInfo: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+  }) {
+    // 1. Verificar datos precargados
+    await this.verifyBasicInfoPreloaded(basicInfo);
+    await this.fillPhoneIfNeeded(basicInfo.phone);
+
+    // 2. Continuar directamente
+    await this.continueToCheckout();
+    console.log(" Info page Will Call completada");
   }
 }

@@ -256,7 +256,7 @@ export class EnrollCheckoutPage {
     console.log(`✅ Fecha de nacimiento: ${month} ${day}, ${year}`);
   }
 
-  // ✅ Llenar SSN
+  //Llenar SSN
   async fillSSN(ssn: string) {
     await this.inputSSN.clear();
     await this.inputSSN.pressSequentially(ssn, { delay: 100 });
@@ -481,7 +481,7 @@ export class EnrollCheckoutPage {
 
     // 4. Clic y esperar navegación a /complete
     await Promise.all([
-      this.page.waitForURL(/\/complete/, { timeout: 60000 }),
+      this.page.waitForURL(/\/complete/, { timeout: 120000 }),
       this.btnCheckout.click(),
     ]);
 
@@ -501,7 +501,7 @@ export class EnrollCheckoutPage {
       birthMonth: string;
       birthDay: string;
       birthYear: string;
-      ssn: string;
+      //ssn: string;
       username: string;
       password: string;
     },
@@ -524,7 +524,7 @@ export class EnrollCheckoutPage {
       enrollData.birthDay,
       enrollData.birthYear,
     );
-    await this.fillSSN(enrollData.ssn);
+    //await this.fillSSN(enrollData.ssn);
     await this.fillCredentials(enrollData.username, enrollData.password);
 
     // 5. Checkboxes

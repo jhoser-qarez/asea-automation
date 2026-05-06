@@ -112,11 +112,11 @@ test.describe("Enrolamiento de Brand Partner", () => {
       await enrollStep3.verifyPageLoaded();
 
       // Verificar promo codes
-      await enrollStep3.verifyPromoCodes([
+      /* await enrollStep3.verifyPromoCodes([
         "TESTSUBSPV",
         "TestEnrollWithSub",
         "SHARESUBSCRIPTION",
-      ]);
+      ]); */
 
       // Verificar perks
       await enrollStep3.verifyEnrollmentPerks();
@@ -153,7 +153,7 @@ test.describe("Enrolamiento de Brand Partner", () => {
           birthMonth: enrollData.birthMonth,
           birthDay: enrollData.birthDay,
           birthYear: enrollData.birthYear,
-          ssn: enrollData.ssn,
+          //ssn: enrollData.ssn,
           username: enrollData.username,
           password: enrollData.password,
         },

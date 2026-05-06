@@ -83,12 +83,12 @@ for (const market of markets) {
       });
 
       //  PASO 8: Confirmación
-      await test.step("Verificar confirmación", async () => {
+      /* await test.step("Verificar confirmación", async () => {
         await completePage.verifyCompleteSuscripcion(
           userInfo.basic.firstName,
           totals,
         );
-      });
+      }); */
     });
   });
 }

@@ -31,7 +31,7 @@ export class OscarSearchPage {
     await Promise.all([
       this.page.waitForResponse(
         (response) => response.url().includes("SearchCriterias_V2"),
-        { timeout: 20000 },
+        { timeout: 45000 },
       ),
       this.btnSearch.click({ force: true }),
     ]);

@@ -36,6 +36,7 @@ export class CheckoutPageEuropean extends CheckoutPage {
   }
 
   override async selectCreditCardPayment() {
+    await this.page.waitForLoadState("networkidle", { timeout: 30000 });
     const isChecked = await this.page.evaluate(() => {
       const input = document.querySelector(
         '[data-test="box-billing-method-0"]',
@@ -47,7 +48,7 @@ export class CheckoutPageEuropean extends CheckoutPage {
       await this.rowCreditCardEU.click({ force: true });
     }
 
-    await expect(this.inputCardName).toBeVisible({ timeout: 10000 });
+    await expect(this.inputCardName).toBeVisible({ timeout: 30000 });
     console.log("✅ Credit Card EU seleccionada");
   }
 

@@ -386,4 +386,160 @@ export class CheckoutPage {
     // ✅ Retornamos los totales para usarlos en CompletePage
     return { orderTotal, subscriptionTotal };
   }
+
+  // Llenar billing address en /checkout (necesario para Will Call)
+  async fillBillingAddress(data: {
+    address1: string;
+    address2?: string;
+    city: string;
+    state: string;
+    zip: string;
+  }) {
+    const inputs = {
+      address1: this.page.locator('[data-test="AddressLine1-field"]').first(),
+      address2: this.page.locator('[data-test="AddressLine2-field"]').first(),
+      city: this.page.locator('[data-test="CountryCity-field"]').first(),
+      state: this.page.locator('[data-test="State-field"]').first(),
+      zip: this.page.locator('[data-test="Zip-field"]').first(),
+    };
+
+    await inputs.address1.clear();
+    await inputs.address1.pressSequentially(data.address1, { delay: 100 });
+
+    if (data.address2) {
+      await inputs.address2.clear();
+      await inputs.address2.pressSequentially(data.address2, { delay: 100 });
+    }
+
+    await inputs.city.clear();
+    await inputs.city.pressSequentially(data.city, { delay: 100 });
+
+    await inputs.state.clear();
+    await inputs.state.pressSequentially(data.state, { delay: 100 });
+    await this.page.getByText(data.state, { exact: true }).first().click();
+
+    await inputs.zip.clear();
+    await inputs.zip.pressSequentially(data.zip, { delay: 100 });
+
+    console.log("Billing address (Order) llenada");
+  }
+
+  //  Llenar billing address de suscripción en /checkout (Will Call)
+  async fillSubscriptionBillingAddress(data: {
+    address1: string;
+    address2?: string;
+    city: string;
+    state: string;
+    zip: string;
+  }) {
+    const inputs = {
+      address1: this.page.locator('[data-test="AddressLine1-field"]').last(),
+      address2: this.page.locator('[data-test="AddressLine2-field"]').last(),
+      city: this.page.locator('[data-test="CountryCity-field"]').last(),
+      state: this.page.locator('[data-test="State-field"]').last(),
+      zip: this.page.locator('[data-test="Zip-field"]').last(),
+    };
+
+    await inputs.address1.clear();
+    await inputs.address1.pressSequentially(data.address1, { delay: 100 });
+
+    if (data.address2) {
+      await inputs.address2.clear();
+      await inputs.address2.pressSequentially(data.address2, { delay: 100 });
+    }
+
+    await inputs.city.clear();
+    await inputs.city.pressSequentially(data.city, { delay: 100 });
+
+    await inputs.state.clear();
+    await inputs.state.pressSequentially(data.state, { delay: 100 });
+    await this.page.getByText(data.state, { exact: true }).first().click();
+
+    await inputs.zip.clear();
+    await inputs.zip.pressSequentially(data.zip, { delay: 100 });
+
+    console.log(" Billing address (Suscripción) llenada");
+  }
+
+  //  Flujo completo de checkout para Will Call (Order + Suscripción)
+  async completeCheckoutWillCall(
+    card: {
+      name: string;
+      number: string;
+      expMonth: string;
+      expYear: string;
+      cvv: string;
+    },
+    billingAddress: {
+      address1: string;
+      address2?: string;
+      city: string;
+      state: string;
+      zip: string;
+    },
+  ): Promise<{ orderTotal: string; subscriptionTotal: string }> {
+    await this.verifyPageLoaded();
+
+    // 1. Seleccionar Credit Card
+    await this.selectCreditCardPayment();
+    await this.fillCardDetails(card);
+
+    // 2. Billing address de Today's Order (obligatorio en Will Call)
+    await this.fillBillingAddress(billingAddress);
+
+    // 3. Subscription: mismo método de pago
+    await this.verifySubscriptionSamePayment();
+
+    // 4. Billing address de Suscripción (mismo que order)
+    await this.fillSubscriptionBillingAddress(billingAddress);
+
+    // 5. Personal consumption
+    await this.checkPersonalConsumption();
+
+    // 6. Capturar totales
+    const orderTotal = await this.captureOrderTotal();
+    const subscriptionTotal = await this.captureSubscriptionTotal();
+
+    // 7. Confirmar orden
+    await this.placeOrder();
+
+    return { orderTotal, subscriptionTotal };
+  }
+
+  //  Flujo checkout Will Call solo suscripción
+  async completeCheckoutWillCallOnlySubscription(
+    card: {
+      name: string;
+      number: string;
+      expMonth: string;
+      expYear: string;
+      cvv: string;
+    },
+    billingAddress: {
+      address1: string;
+      address2?: string;
+      city: string;
+      state: string;
+      zip: string;
+    },
+  ): Promise<{ orderTotal: string; subscriptionTotal: string }> {
+    await this.verifyPageLoaded();
+
+    // 1. Seleccionar Credit Card
+    await this.selectCreditCardPayment();
+    await this.verifySubscriptionSamePayment();
+    await this.fillCardDetails(card);
+
+    // 2. Billing address de Suscripción (obligatorio en Will Call)
+    await this.fillSubscriptionBillingAddress(billingAddress);
+
+    // 3. Capturar totales
+    const orderTotal = await this.captureOrderTotal();
+    const subscriptionTotal = await this.captureSubscriptionTotal();
+
+    // 4. Confirmar orden
+    await this.placeOrder();
+
+    return { orderTotal, subscriptionTotal };
+  }
 }
