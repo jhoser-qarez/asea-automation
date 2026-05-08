@@ -1,18 +1,18 @@
 import { test, expect } from "@playwright/test";
-import { LoginPage } from "../pages/LoginPage";
-import { ProductsPage } from "../pages/ProductsPage";
-import { ProductDetailPage } from "../pages/ProductDetailPage";
-import { CartModalPage } from "../pages/CartModalPage";
-import { InfoPage } from "../pages/InfoPage";
-import { EnrollCheckoutPage } from "../pages/EnrollAssociate/EnrollCheckoutPage";
-import { EnrollCompletePage } from "../pages/EnrollAssociate/EnrollCompletePage";
-import { generateEnrollData } from "../fixtures/enrollData";
-import { userInfo } from "../fixtures/userData";
+import { LoginPage } from "../../pages/LoginPage";
+import { ProductsPage } from "../../pages/ProductsPage";
+import { ProductDetailPage } from "../../pages/ProductDetailPage";
+import { CartModalPage } from "../../pages/CartModalPage";
+import { InfoPage } from "../../pages/InfoPage";
+import { EnrollCheckoutPage } from "../../pages/EnrollAssociate/EnrollCheckoutPage";
+import { EnrollCompletePage } from "../../pages/EnrollAssociate/EnrollCompletePage";
+import { generateEnrollData } from "../../fixtures/enrollData";
+import { userInfo } from "../../fixtures/userData";
 import {
   products,
   subscriptionBundles,
   distributor,
-} from "../fixtures/productData";
+} from "../../fixtures/productData";
 
 test.describe("Enrolamiento Subscription Customer", () => {
   test("Flujo completo: Subscription Customer", async ({ page }) => {

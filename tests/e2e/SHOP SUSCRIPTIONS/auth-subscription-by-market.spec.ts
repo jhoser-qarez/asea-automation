@@ -1,16 +1,16 @@
 import { test, expect } from "@playwright/test";
-import { LoginPage } from "../pages/LoginPage";
-import { MarketSelectorPage } from "../pages/MarketSelectorPage";
-import { ProductsPage } from "../pages/ProductsPage";
-import { ProductDetailPage } from "../pages/ProductDetailPage";
-import { CartModalPage } from "../pages/CartModalPage";
-import { InfoPage } from "../pages/InfoPage";
-import { CheckoutPage } from "../pages/CheckoutPage";
-import { CheckoutPageEuropean } from "../pages/CheckoutPageEuropean";
-import { CompletePage } from "../pages/CompletePage";
-import { users } from "../fixtures/credentials";
-import { userInfo } from "../fixtures/userData";
-import { markets } from "../fixtures/marketData";
+import { LoginPage } from "../../pages/LoginPage";
+import { MarketSelectorPage } from "../../pages/MarketSelectorPage";
+import { ProductsPage } from "../../pages/ProductsPage";
+import { ProductDetailPage } from "../../pages/ProductDetailPage";
+import { CartModalPage } from "../../pages/CartModalPage";
+import { InfoPage } from "../../pages/InfoPage";
+import { CheckoutPage } from "../../pages/CheckoutPage";
+import { CheckoutPageEuropean } from "../../pages/CheckoutPageEuropean";
+import { CompletePage } from "../../pages/CompletePage";
+import { users } from "../../fixtures/credentials";
+import { userInfo } from "../../fixtures/userData";
+import { markets } from "../../fixtures/marketData";
 
 for (const market of markets) {
   test.describe(`Orden Solo Suscripción con Dist Logueado - ${market.marketName}`, () => {

@@ -1,3 +1,5 @@
+import { products } from "./productData";
+
 export const urls = {
   shop: {
     base: "https://shop.aseastage.com",
@@ -7,5 +9,11 @@ export const urls = {
   oscar: {
     base: "https://oscar.aseastage.com",
     login: "https://oscar.aseastage.com/",
+  },
+
+  shopLive: {
+    base: "https://shop.aseaglobal.com/",
+    products: "https://shop.aseaglobal.com/products?m=7",
+    login: "https://shop.aseaglobal.com/",
   },
 };

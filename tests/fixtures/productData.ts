@@ -106,6 +106,6 @@ export const subscriptionBundles = {
 };
 
 export const enrollmentSelection = {
-  pack: enrollmentPacks.deluxe,
-  bundle: subscriptionBundles.asea4Bottles,
+  pack: enrollmentPacks.entrepreneur,
+  bundle: subscriptionBundles.renu28,
 };

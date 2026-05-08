@@ -12,21 +12,20 @@ export default defineConfig({
     [
       "html",
       {
-        open: "never", // no abre automáticamente al terminar
+        open: "never",
         outputFolder: "playwright-report",
       },
     ],
-    ["list"], // ✅ muestra resultados en tiempo real en terminal
+    ["list"],
     [
       "junit",
       {
-        outputFile: "test-results/results.xml", // ✅ útil para CI/CD
+        outputFile: "test-results/results.xml",
       },
     ],
   ],
 
   use: {
-    //baseURL: "https://shop.aseastage.com/",
     headless: false,
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -35,20 +34,54 @@ export default defineConfig({
   },
 
   projects: [
-    // ✅ Chrome
+    // Navegadores base (sin metadata específica)
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
-    // ✅ Firefox
     {
       name: "firefox",
       use: { ...devices["Desktop Firefox"] },
     },
-    // ✅ Safari
     {
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
+    },
+
+    // ✅ Virtual Office sections - por entorno
+    {
+      name: "stage",
+      use: { ...devices["Desktop Chrome"] },
+      metadata: {
+        env: "stage",
+        voPort: undefined,
+      },
+      timeout: 180000,
+    },
+
+    {
+      name: "live-port-1",
+      use: { ...devices["Desktop Chrome"] },
+      metadata: {
+        env: "live",
+        voPort: "10000",
+      },
+    },
+    {
+      name: "live-port-2",
+      use: { ...devices["Desktop Chrome"] },
+      metadata: {
+        env: "live",
+        voPort: "10001",
+      },
+    },
+    {
+      name: "live",
+      use: { ...devices["Desktop Chrome"] },
+      metadata: {
+        env: "live",
+        voPort: undefined,
+      },
     },
   ],
 });

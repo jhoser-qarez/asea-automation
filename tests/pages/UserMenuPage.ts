@@ -46,25 +46,33 @@ export class UserMenuPage {
   }
 
   /**
-   * Navega al Virtual Office (abre en nueva pestaña)
+   * Navega al Virtual Office (abre en nueva pestaña).
+   * Si se pasa un puerto, intercepta la URL antes de cargar y añade el puerto.
+   * @param voPort Puerto a inyectar en la URL del VO (ej. "8080"). Opcional.
    * @returns La página del Virtual Office
    */
-  async goToVirtualOffice(): Promise<Page> {
+  async goToVirtualOffice(voPort?: string): Promise<Page> {
     await this.openUserMenu();
 
-    // Esperar a que el enlace sea visible
     await expect(this.goToVOLink).toBeVisible({ timeout: 5000 });
 
-    // Hacer clic y esperar la nueva pestaña
     const [voPage] = await Promise.all([
       this.page.context().waitForEvent("page", { timeout: 10000 }),
       this.goToVOLink.click(),
     ]);
 
-    // Esperar que cargue la nueva página
-    await voPage.waitForLoadState("networkidle", { timeout: 30000 });
-    console.log("✅ Virtual Office abierto en nueva pestaña");
+    if (voPort) {
+      // Esperar que la nueva pestaña tenga URL antes de redirigir
+      await voPage.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});
+      const originalUrl = new URL(voPage.url());
+      originalUrl.port = voPort;
+      console.log(`🔀 Redirigiendo VO a puerto ${voPort}: ${originalUrl.href}`);
+      await voPage.goto(originalUrl.href, { waitUntil: "networkidle", timeout: 30000 });
+    } else {
+      await voPage.waitForLoadState("networkidle", { timeout: 30000 });
+    }
 
+    console.log("✅ Virtual Office abierto en nueva pestaña");
     return voPage;
   }
 

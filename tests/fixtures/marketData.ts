@@ -49,9 +49,9 @@ export const markets: MarketConfig[] = [
       zip: "10115",
     },
     basic: {
-      email: "jhosertest1@test.com",
+      email: "jhoserjuarez86480064@test.com",
       firstName: "Jhoser",
-      lastName: "Juarez",
+      lastName: "TestEnroll",
       phone: "9000000001",
     },
     card: {

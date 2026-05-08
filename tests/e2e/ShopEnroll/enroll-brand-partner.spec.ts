@@ -1,23 +1,23 @@
 import { test, expect, Page } from "@playwright/test";
-import { OscarLoginPage } from "../pages/Oscar/OscarLoginPage";
-import { OscarSearchPage } from "../pages/Oscar/OscarSearchPage";
-import { OscarPopUpSearchResultsPage } from "../pages/Oscar/OscarPopUpSearchResultsPage";
-import { EnrollStep1Page } from "../pages/EnrollAssociate/EnrollStep1Page";
-import { EnrollStep2Page } from "../pages/EnrollAssociate/EnrollStep2Page";
-import { EnrollStep3Page } from "../pages/EnrollAssociate/EnrollStep3Page";
-import { EnrollCheckoutPage } from "../pages/EnrollAssociate/EnrollCheckoutPage";
-import { EnrollCompletePage } from "../pages/EnrollAssociate/EnrollCompletePage";
-import { CartModalPage } from "../pages/CartModalPage";
-import { InfoPage } from "../pages/InfoPage";
-import { users } from "../fixtures/credentials";
-import { userInfo } from "../fixtures/userData";
-import { generateEnrollData } from "../fixtures/enrollData";
+import { OscarLoginPage } from "../../pages/Oscar/OscarLoginPage";
+import { OscarSearchPage } from "../../pages/Oscar/OscarSearchPage";
+import { OscarPopUpSearchResultsPage } from "../../pages/Oscar/OscarPopUpSearchResultsPage";
+import { EnrollStep1Page } from "../../pages/EnrollAssociate/EnrollStep1Page";
+import { EnrollStep2Page } from "../../pages/EnrollAssociate/EnrollStep2Page";
+import { EnrollStep3Page } from "../../pages/EnrollAssociate/EnrollStep3Page";
+import { EnrollCheckoutPage } from "../../pages/EnrollAssociate/EnrollCheckoutPage";
+import { EnrollCompletePage } from "../../pages/EnrollAssociate/EnrollCompletePage";
+import { CartModalPage } from "../../pages/CartModalPage";
+import { InfoPage } from "../../pages/InfoPage";
+import { users } from "../../fixtures/credentials";
+import { userInfo } from "../../fixtures/userData";
+import { generateEnrollData } from "../../fixtures/enrollData";
 import {
   distributor,
   enrollmentPacks,
   subscriptionBundles,
   enrollmentSelection,
-} from "../fixtures/productData";
+} from "../../fixtures/productData";
 
 test.describe("Enrolamiento de Brand Partner", () => {
   test("Flujo completo para enrolar un BP desde OSCAR", async ({ page }) => {

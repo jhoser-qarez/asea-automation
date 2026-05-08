@@ -1,8 +1,8 @@
 import { test, expect, Page } from "@playwright/test";
-import { LoginPage } from "../pages/LoginPage";
-import { UserMenuPage } from "../pages/UserMenuPage";
-import { VirtualOfficePage } from "../pages/VirtualOffice/VirtualOfficePage";
-import { users } from "../fixtures/credentials";
+import { LoginPage } from "../../pages/LoginPage";
+import { UserMenuPage } from "../../pages/UserMenuPage";
+import { VirtualOfficePage } from "../../pages/VirtualOffice/VirtualOfficePage";
+import { users } from "../../fixtures/credentials";
 
 test.describe("Virtual Office - Verificación de enlaces", () => {
   test("Todos los enlaces del VO deben funcionar correctamente", async ({

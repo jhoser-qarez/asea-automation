@@ -65,12 +65,16 @@ export class CartModalPage {
 
   // ✅ Verificar producto en la orden normal
   async verifyProductInCart(productName: string) {
-    await expect(this.productNameInCart).toContainText(productName);
+    await expect(
+      this.productNameInCart.filter({ hasText: productName }).first(),
+    ).toBeVisible();
   }
 
   // ✅ Verificar producto en suscripción
   async verifyProductInSubscription(productName: string) {
-    await expect(this.productNameInSubs).toContainText(productName);
+    await expect(
+      this.productNameInSubs.filter({ hasText: productName }).first(),
+    ).toBeVisible();
   }
 
   // ✅ Verificar ambas secciones

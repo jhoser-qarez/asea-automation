@@ -1,14 +1,14 @@
 import { test, expect } from "@playwright/test";
-import { LoginPage } from "../pages/LoginPage";
-import { ProductsPage } from "../pages/ProductsPage";
-import { ProductDetailPage } from "../pages/ProductDetailPage";
-import { CartModalPage } from "../pages/CartModalPage";
-import { InfoPage } from "../pages/InfoPage";
-import { CheckoutPage } from "../pages/CheckoutPage";
-import { CompletePage } from "../pages/CompletePage";
-import { users } from "../fixtures/credentials";
-import { products } from "../fixtures/productData";
-import { userInfo } from "../fixtures/userData";
+import { LoginPage } from "../../pages/LoginPage";
+import { ProductsPage } from "../../pages/ProductsPage";
+import { ProductDetailPage } from "../../pages/ProductDetailPage";
+import { CartModalPage } from "../../pages/CartModalPage";
+import { InfoPage } from "../../pages/InfoPage";
+import { CheckoutPage } from "../../pages/CheckoutPage";
+import { CompletePage } from "../../pages/CompletePage";
+import { users } from "../../fixtures/credentials";
+import { products } from "../../fixtures/productData";
+import { userInfo } from "../../fixtures/userData";
 
 test.describe("Orden con Today Order + Suscripción con Dist Logueado", () => {
   test("Flujo completo: mismo producto en Order y Suscripción", async ({

@@ -48,4 +48,12 @@ export class LoginPage {
     await expect(this.getUsernameLabel(username)).toBeVisible();
     await expect(this.getUsernameLabel(username)).toContainText(username);
   }
+
+  async gotoByEnv(env: "stage" | "live") {
+    await this.page.context().clearCookies();
+    await this.page.context().clearPermissions();
+    await this.page.goto(
+      env === "live" ? urls.shopLive.login : urls.shop.login,
+    );
+  }
 }

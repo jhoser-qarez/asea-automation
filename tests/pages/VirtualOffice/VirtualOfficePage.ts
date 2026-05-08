@@ -67,6 +67,47 @@ export class VirtualOfficePage {
   }
 
   /**
+   * Cierra todos los banners promocionales que aparezcan.
+   * Busca en el frame principal y en todos los iframes (el banner suele cargarse en un iframe).
+   */
+  async closePromoBannerIfExists() {
+    let closed = 0;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      let foundVisible = false;
+      const frames = this.page.frames();
+
+      for (const frame of frames) {
+        const btns = frame.locator("#interactive-close-button-container");
+        const count = await btns.count().catch(() => 0);
+        for (let j = 0; j < count; j++) {
+          const btn = btns.nth(j);
+          const isVisible = await btn.isVisible({ timeout: 1000 }).catch(() => false);
+          if (isVisible) {
+            // force:true omite la espera de estabilidad (el banner suele estar animando)
+            await btn.click({ force: true, timeout: 5000 }).catch(() => {});
+            await this.page.waitForTimeout(400);
+            // Solo cuenta si el banner realmente desapareció tras el click
+            const stillVisible = await btn.isVisible({ timeout: 1000 }).catch(() => false);
+            if (!stillVisible) {
+              closed++;
+            }
+            foundVisible = true;
+          }
+        }
+      }
+
+      if (!foundVisible) break;
+    }
+
+    if (closed > 0) {
+      console.log(`✅ ${closed} banner(s) promocional(es) cerrado(s)`);
+    } else {
+      console.log("ℹ️ No apareció banner promocional");
+    }
+  }
+
+  /**
    * Cierra el modal de bienvenida si aparece
    */
   async closeWelcomeModalIfExists() {
@@ -83,9 +124,8 @@ export class VirtualOfficePage {
     }
   }
 
-  /**
-   * Verifica que el Virtual Office está cargado
-   */
+  //Verifica que el Virtual Office está cargado
+
   async verifyPageLoaded() {
     await expect(this.page).toHaveURL(/office\.aseastage\.com/, {
       timeout: 30000,
@@ -99,16 +139,14 @@ export class VirtualOfficePage {
   // ============================================================
 
   async isErrorPresent(): Promise<boolean> {
-    await this.page.waitForTimeout(1000); // estabilizar
+    await this.page.waitForTimeout(1000);
 
-    // Selectores de elementos que típicamente son mensajes de error visibles
+    // Selectores específicos de ERROR (no incluye alert-info, alert-warning, etc.)
     const errorSelectors = [
-      ".alert-danger", // usado en Resources
+      ".alert-danger", // Bootstrap error
       ".alert.alert-danger",
       ".error-message",
-      ".alert",
-      '[class*="error"]',
-      '[class*="alert"]',
+      '[class*="error"]', // cualquier clase que contenga "error"
     ];
 
     for (const selector of errorSelectors) {
@@ -116,13 +154,26 @@ export class VirtualOfficePage {
       for (const el of elements) {
         const isVisible = await el.isVisible().catch(() => false);
         if (isVisible) {
-          // Opcional: verificar que no esté vacío
           const text = await el.textContent();
           if (text && text.trim().length > 0) {
-            console.log(
-              `❌ Error visible detectado: selector "${selector}" -> "${text.trim().substring(0, 100)}"`,
-            );
-            return true;
+            // Verificar que NO sea un mensaje informativo
+            const lowerText = text.toLowerCase();
+            const isInformational =
+              lowerText.includes("change of sponsorship") ||
+              lowerText.includes("ha solicitado") ||
+              lowerText.includes("patrocinio") ||
+              lowerText.includes("please click");
+
+            if (!isInformational) {
+              console.log(
+                `❌ Error visible detectado: selector "${selector}" -> "${text.trim().substring(0, 100)}"`,
+              );
+              return true;
+            } else {
+              console.log(
+                `ℹ️ Mensaje informativo ignorado: "${text.trim().substring(0, 100)}"`,
+              );
+            }
           }
         }
       }
@@ -192,18 +243,34 @@ export class VirtualOfficePage {
   // NAVEGACIÓN POR SECCIONES
   // ============================================================
 
-  /**
-   * Navega a una sección del menú lateral.
-   */
+  // Navega a una sección del menú lateral.
+
   async navigateToSection(sectionName: string) {
+    await this.closePromoBannerIfExists();
     const link = this.page
       .locator(
         `#mainMenu ul.main-menu-content li.nav-item a:has-text("${sectionName}")`,
       )
       .first();
     await link.waitFor({ state: "visible", timeout: 10000 });
+
+    const urlBefore = this.page.url();
     await link.click();
-    await this.page.waitForLoadState("networkidle", { timeout: 60000 });
+
+    // Si la navegación cambia la URL, esperamos domcontentloaded; si el VO
+    // carga el contenido en un iframe/panel sin cambiar URL usamos un timeout corto.
+    const urlChanged = await this.page
+      .waitForURL((url) => url.href !== urlBefore, { timeout: 15000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (urlChanged) {
+      await this.page.waitForLoadState("domcontentloaded", { timeout: 30000 });
+    } else {
+      // Sin cambio de URL: contenido probablemente en iframe — esperamos networkidle corto
+      await this.page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+    }
+
     await this.assertNoErrorMessage();
     console.log(`✅ Sección "${sectionName}" cargada correctamente`);
   }
@@ -212,12 +279,26 @@ export class VirtualOfficePage {
    * Navega a una sección del header superior.
    */
   async navigateToHeaderSection(sectionName: string) {
+    await this.closePromoBannerIfExists();
     const link = this.page
       .locator(`#divContainerCustomer a:has-text("${sectionName}")`)
       .first();
     await link.waitFor({ state: "visible", timeout: 10000 });
+
+    const urlBefore = this.page.url();
     await link.click();
-    await this.page.waitForLoadState("networkidle", { timeout: 60000 });
+
+    const urlChanged = await this.page
+      .waitForURL((url) => url.href !== urlBefore, { timeout: 15000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (urlChanged) {
+      await this.page.waitForLoadState("domcontentloaded", { timeout: 30000 });
+    } else {
+      await this.page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+    }
+
     await this.assertNoErrorMessage();
     console.log(`✅ Sección "${sectionName}" cargada correctamente`);
   }
