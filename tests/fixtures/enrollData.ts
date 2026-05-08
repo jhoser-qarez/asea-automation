@@ -15,7 +15,7 @@ export function generateEnrollData() {
     birthMonth: "January",
     birthDay: "5",
     birthYear: "1990",
-    ssn: ssn,
+    //ssn: ssn,
     username: `testuser${emailCounter}`,
     password: "TestEnroll!234",
   };

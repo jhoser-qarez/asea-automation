@@ -10,26 +10,70 @@ import { EnrollCompletePage } from "../../pages/EnrollAssociate/EnrollCompletePa
 import { CartModalPage } from "../../pages/CartModalPage";
 import { InfoPage } from "../../pages/InfoPage";
 import { users } from "../../fixtures/credentials";
-import { userInfo } from "../../fixtures/userData";
+import { userInfo, userInfoLive } from "../../fixtures/userData";
 import { generateEnrollData } from "../../fixtures/enrollData";
 import {
   distributor,
-  enrollmentPacks,
-  subscriptionBundles,
   enrollmentSelection,
 } from "../../fixtures/productData";
 
+interface ProjectMetadata {
+  env?: string;
+  voPort?: string;
+}
+
+interface TestConfig {
+  env: string;
+  voPort: string | undefined;
+  oscarUser: { username: string; password: string };
+  info: typeof userInfo;
+}
+
 test.describe("Enrolamiento de Brand Partner", () => {
+  function getConfig(
+    projectName: string,
+    metadata?: ProjectMetadata,
+  ): TestConfig {
+    const env =
+      metadata?.env === "stage" || metadata?.env === "live"
+        ? metadata.env
+        : projectName === "stage"
+          ? "stage"
+          : "live";
+
+    const voPort =
+      metadata?.voPort !== undefined
+        ? metadata.voPort
+        : projectName === "live-port-1"
+          ? "10001"
+          : projectName === "live-port-2"
+            ? "10002"
+            : undefined;
+
+    const oscarUser = env === "stage" ? users.oscar : users.oscarLive;
+    const info = env === "stage" ? userInfo : userInfoLive;
+
+    console.log(`    Configuración - Proyecto: ${projectName}`);
+    console.log(`   Entorno: ${env}`);
+    console.log(`   Puerto VO: ${voPort || "ninguno"}`);
+
+    return { env, voPort, oscarUser, info };
+  }
+
   test("Flujo completo para enrolar un BP desde OSCAR", async ({ page }) => {
+    const project = test.info().project;
+    const config = getConfig(project.name, project.metadata as ProjectMetadata);
+
     const oscarLoginPage = new OscarLoginPage(page);
     const oscarSearchPage = new OscarSearchPage(page);
     const oscarSearchResultsPage = new OscarPopUpSearchResultsPage(page);
 
     // PASO 1: Login en Oscar
     await test.step("Login en Oscar", async () => {
-      await oscarLoginPage.gotoAndLogin(
-        users.oscar.username,
-        users.oscar.password,
+      await oscarLoginPage.gotoAndLoginByEnv(
+        config.env as "stage" | "live",
+        config.oscarUser.username,
+        config.oscarUser.password,
       );
     });
 
@@ -37,6 +81,7 @@ test.describe("Enrolamiento de Brand Partner", () => {
     await test.step("Buscar distribuidor", async () => {
       await oscarSearchPage.searchByBrandPartnerId(distributor.brandPartnerId);
     });
+
     // PASO 3: Verificar busqueda
     await test.step("Verificar resultados de búsqueda", async () => {
       await oscarSearchResultsPage.verifyModalVisible();
@@ -44,11 +89,26 @@ test.describe("Enrolamiento de Brand Partner", () => {
         distributor.brandPartnerId,
       );
     });
-    // PASO 4: Clic en Enroll
-    let shopPage: Page;
 
+    // PASO 4: Clic en Enroll — abre el shop en nueva pestaña
+    let shopPage: Page;
     await test.step("Hacer clic en Enroll", async () => {
       shopPage = await oscarSearchResultsPage.clickEnroll();
+
+      // Si hay puerto, inyectarlo en la URL del shop
+      if (config.voPort) {
+        await shopPage
+          .waitForLoadState("domcontentloaded", { timeout: 15000 })
+          .catch(() => {});
+        const url = new URL(shopPage.url());
+        url.port = config.voPort;
+        console.log(`🔀 Redirigiendo shop a puerto ${config.voPort}: ${url.href}`);
+        await shopPage.goto(url.href, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
+        });
+      }
+
       await expect(shopPage).toHaveURL(/sponsorId/);
       await expect(shopPage).toHaveURL(/at=true/);
       console.log(`✅ URL de enrolamiento: ${shopPage.url()}`);
@@ -103,38 +163,17 @@ test.describe("Enrolamiento de Brand Partner", () => {
       const enrollStep3 = new EnrollStep3Page(shopPage);
       const infoPage = new InfoPage(shopPage);
 
-      // Generar datos únicos para este enrolamiento
       const enrollData = generateEnrollData();
       console.log(`📧 Email generado: ${enrollData.email}`);
       console.log(`📞 Teléfono generado: ${enrollData.phone}`);
 
-      // Verificar Step 3
       await enrollStep3.verifyPageLoaded();
-
-      // Verificar promo codes
-      /* await enrollStep3.verifyPromoCodes([
-        "TESTSUBSPV",
-        "TestEnrollWithSub",
-        "SHARESUBSCRIPTION",
-      ]); */
-
-      // Verificar perks
       await enrollStep3.verifyEnrollmentPerks();
-
-      // Llenar datos básicos con datos únicos
       await enrollStep3.fillBasicInfo(enrollData);
-
-      // Llenar dirección
-      await infoPage.fillShippingAddress(userInfo.address);
-
-      // Guardar dirección y esperar loading
+      await infoPage.fillShippingAddress(config.info.address);
       await enrollStep3.saveAddress();
-
-      // Seleccionar shipping
-      await infoPage.selectOrderShipping(userInfo.shipping.order);
-      await infoPage.selectSubscriptionShipping(userInfo.shipping.subscription);
-
-      // Continuar al checkout
+      await infoPage.selectOrderShipping(config.info.shipping.order);
+      await infoPage.selectSubscriptionShipping(config.info.shipping.subscription);
       await enrollStep3.continueToCheckout();
     });
 
@@ -142,13 +181,13 @@ test.describe("Enrolamiento de Brand Partner", () => {
     let enrollTotals: { orderTotal: string; subscriptionTotal: string };
     let enrollData: ReturnType<typeof generateEnrollData>;
     await test.step("Checkout - Completar enrolamiento", async () => {
-      enrollData = generateEnrollData(); // guardar en variable externa
+      enrollData = generateEnrollData();
       console.log(`Email: ${enrollData.email}`);
       console.log(`Teléfono: ${enrollData.phone}`);
 
       const enrollCheckout = new EnrollCheckoutPage(shopPage);
       enrollTotals = await enrollCheckout.completeEnrollCheckout(
-        userInfo.card,
+        config.info.card,
         {
           birthMonth: enrollData.birthMonth,
           birthDay: enrollData.birthDay,
@@ -160,11 +199,11 @@ test.describe("Enrolamiento de Brand Partner", () => {
       );
     });
 
-    //  PASO 12: Verificar confirmación del enrolamiento
+    // PASO 12: Verificar confirmación del enrolamiento
     await test.step("Verificar confirmación del enrolamiento", async () => {
       const enrollComplete = new EnrollCompletePage(shopPage);
       await enrollComplete.verifyCompleteEnrollment(
-        enrollData.firstName, // viene del generateEnrollData()
+        enrollData.firstName,
         enrollTotals,
       );
     });

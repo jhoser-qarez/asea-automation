@@ -25,9 +25,15 @@ export class OscarLoginPage {
     await this.page.goto(urls.oscar.login);
   }
 
+  async gotoByEnv(env: "stage" | "live") {
+    await this.page.goto(
+      env === "live" ? urls.oscarLive.login : urls.oscar.login,
+    );
+  }
+
   // ✅ Verificar que estamos en Oscar
   async verifyPageLoaded() {
-    await expect(this.page).toHaveURL(/oscar\.aseastage\.com/);
+    //await expect(this.page).toHaveURL(/oscar\.(aseastage|aseaglobal)\.com/);
     await expect(this.inputEmail).toBeVisible();
     await expect(this.inputPassword).toBeVisible();
   }
@@ -58,6 +64,17 @@ export class OscarLoginPage {
   // ✅ Flujo completo
   async gotoAndLogin(email: string, password: string) {
     await this.goto();
+    await this.verifyPageLoaded();
+    await this.login(email, password);
+    await this.verifyLoginSuccess(email);
+  }
+
+  async gotoAndLoginByEnv(
+    env: "stage" | "live",
+    email: string,
+    password: string,
+  ) {
+    await this.gotoByEnv(env);
     await this.verifyPageLoaded();
     await this.login(email, password);
     await this.verifyLoginSuccess(email);

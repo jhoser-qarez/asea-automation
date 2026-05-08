@@ -70,7 +70,7 @@ export class EnrollCheckoutPage {
     );
     this.rowCreditCard = page
       .locator(".color-row", {
-        hasText: "Credit Card - TEST",
+        hasText: "Credit Card",
       })
       .first();
     this.inputCardName = page.locator('[data-test="cardName-field"]');

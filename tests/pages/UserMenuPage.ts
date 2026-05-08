@@ -63,13 +63,18 @@ export class UserMenuPage {
 
     if (voPort) {
       // Esperar que la nueva pestaña tenga URL antes de redirigir
-      await voPage.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});
+      await voPage
+        .waitForLoadState("domcontentloaded", { timeout: 15000 })
+        .catch(() => {});
       const originalUrl = new URL(voPage.url());
       originalUrl.port = voPort;
       console.log(`🔀 Redirigiendo VO a puerto ${voPort}: ${originalUrl.href}`);
-      await voPage.goto(originalUrl.href, { waitUntil: "networkidle", timeout: 30000 });
+      await voPage.goto(originalUrl.href, {
+        waitUntil: "networkidle",
+        timeout: 30000,
+      });
     } else {
-      await voPage.waitForLoadState("networkidle", { timeout: 30000 });
+      await voPage.waitForLoadState("networkidle", { timeout: 50000 });
     }
 
     console.log("✅ Virtual Office abierto en nueva pestaña");

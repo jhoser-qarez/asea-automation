@@ -11,20 +11,19 @@ interface ProjectMetadata {
 }
 
 interface TestConfig {
-  env: string;
+  env: "stage" | "live";
   voPort: string | undefined;
   user: { username: string; password: string };
 }
 
-test.describe("Virtual Office - Carga correcta de secciones", () => {
-  // Helper para obtener configuración desde la metadata del proyecto
+test.describe("Virtual Office - Carga correcta de páginas", () => {
   function getConfig(
     projectName: string,
     metadata?: ProjectMetadata,
   ): TestConfig {
     const env =
       metadata?.env === "stage" || metadata?.env === "live"
-        ? metadata.env
+        ? (metadata.env as "stage" | "live")
         : projectName === "stage"
           ? "stage"
           : "live";
@@ -40,36 +39,76 @@ test.describe("Virtual Office - Carga correcta de secciones", () => {
 
     const user = env === "stage" ? users.valid : users.validLive;
 
-    console.log(`    Configuración - Proyecto: ${projectName}`);
+    console.log(`📦 Configuración - Proyecto: ${projectName}`);
     console.log(`   Entorno: ${env}`);
     console.log(`   Puerto VO: ${voPort || "ninguno"}`);
 
     return { env, voPort, user };
   }
 
-  test("Todas las secciones del menú lateral deben cargar sin errores ", async ({
-    page,
-  }) => {
-    test.setTimeout(300_000); // 5 min
+  // ============================================================
+  // TEST 1: Verificar HOME primero
+  // ============================================================
+  test("La página Home del VO debe cargar sin errores", async ({ page }) => {
+    test.setTimeout(120_000); // 2 minutos
 
-    // ✅ Obtener configuración desde metadata del proyecto
     const project = test.info().project;
     const config = getConfig(project.name, project.metadata as ProjectMetadata);
 
     const loginPage = new LoginPage(page);
     const userMenu = new UserMenuPage(page);
 
-    await loginPage.gotoByEnv(config.env as "stage" | "live");
+    // Login
+    await loginPage.gotoByEnv(config.env);
     await loginPage.login(config.user.username, config.user.password);
     await loginPage.verifyLoginSuccess(config.user.username);
 
     // Abrir VO
     const voPage = await userMenu.goToVirtualOffice(config.voPort);
     const vo = new VirtualOfficePage(voPage);
+
+    // Cerrar posibles modales/banners
     await vo.closePromoBannerIfExists();
     await vo.closeWelcomeModalIfExists();
     await vo.closePromoBannerIfExists();
 
+    // ✅ Verificar que el Home cargó correctamente
+    await vo.verifyPageLoaded(); // ya verifica que estamos en office.aseastage.com
+    await vo.assertNoErrorMessage(); // verificar que no hay errores visibles
+
+    console.log("✅ Página Home del VO cargada correctamente sin errores");
+  });
+
+  // ============================================================
+  // TEST 2: Todas las secciones del menú lateral
+  // ============================================================
+  test("Todas las secciones del menú lateral deben cargar sin errores", async ({
+    page,
+  }) => {
+    test.setTimeout(300_000); // 5 min
+
+    const project = test.info().project;
+    const config = getConfig(project.name, project.metadata as ProjectMetadata);
+
+    const loginPage = new LoginPage(page);
+    const userMenu = new UserMenuPage(page);
+
+    await loginPage.gotoByEnv(config.env);
+    await loginPage.login(config.user.username, config.user.password);
+    await loginPage.verifyLoginSuccess(config.user.username);
+
+    const voPage = await userMenu.goToVirtualOffice(config.voPort);
+    const vo = new VirtualOfficePage(voPage);
+    await vo.closePromoBannerIfExists();
+    await vo.closeWelcomeModalIfExists();
+    await vo.closePromoBannerIfExists();
+
+    // Verificar Home primero (estado inicial)
+    await vo.verifyPageLoaded();
+    await vo.assertNoErrorMessage();
+    console.log("✅ Home verificado");
+
+    // Secciones del menú lateral (sin incluir Home porque ya lo verificamos)
     const sections = [
       "Resources",
       "Support",
@@ -121,19 +160,21 @@ test.describe("Virtual Office - Carga correcta de secciones", () => {
     }
   });
 
-  test("Secciones del header superior deben cargar sin errores ", async ({
+  // ============================================================
+  // TEST 3: Secciones del header superior
+  // ============================================================
+  test("Secciones del header superior deben cargar sin errores", async ({
     page,
   }) => {
     test.setTimeout(180_000);
 
-    // ✅ Obtener configuración desde metadata del proyecto
     const project = test.info().project;
     const config = getConfig(project.name, project.metadata as ProjectMetadata);
 
     const loginPage = new LoginPage(page);
     const userMenu = new UserMenuPage(page);
 
-    await loginPage.gotoByEnv(config.env as "stage" | "live");
+    await loginPage.gotoByEnv(config.env);
     await loginPage.login(config.user.username, config.user.password);
     await loginPage.verifyLoginSuccess(config.user.username);
 
@@ -142,6 +183,11 @@ test.describe("Virtual Office - Carga correcta de secciones", () => {
     await vo.closePromoBannerIfExists();
     await vo.closeWelcomeModalIfExists();
     await vo.closePromoBannerIfExists();
+
+    // Verificar Home primero
+    await vo.verifyPageLoaded();
+    await vo.assertNoErrorMessage();
+    console.log("✅ Home verificado");
 
     const headerSections = ["Dashboard", "My Site", "Order History"];
     const failedSections: string[] = [];
@@ -154,7 +200,7 @@ test.describe("Virtual Office - Carga correcta de secciones", () => {
           console.log(`⚠️ Falló la sección "${section}"`);
           await voPage
             .screenshot({
-              path: `test-results/failed-${section}.png`,
+              path: `test-results/failed-header-${section}.png`,
               fullPage: true,
             })
             .catch(() => {});

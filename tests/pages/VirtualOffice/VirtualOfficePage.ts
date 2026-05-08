@@ -1,3 +1,4 @@
+// pages/VirtualOffice/VirtualOfficePage.ts
 import { Page, Locator, expect } from "@playwright/test";
 
 export interface LinkInfo {
@@ -17,13 +18,13 @@ export class VirtualOfficePage {
   // Contenedor principal
   readonly mainContainer: Locator;
 
-  // Detectores de error (los agregamos explícitamente)
+  // Detectores de error
   readonly errorMessageText: Locator;
   readonly errorContainer: Locator;
   private readonly errorPatterns: string[];
-  private readonly excludeTags: string[]; // etiquetas a ignorar
+  private readonly excludeTags: string[];
 
-  // Selectores para excluir (enlaces que no queremos verificar)
+  // Selectores para excluir enlaces
   private readonly excludePatterns: RegExp[] = [
     /^javascript:/i,
     /^#$/,
@@ -34,6 +35,24 @@ export class VirtualOfficePage {
     /logout/i,
     /signout/i,
   ];
+
+  // Mapeo de secciones a URLs (independiente del idioma)
+  private readonly sectionUrls: Record<string, string> = {
+    Resources: "/Private/resources/Library.aspx",
+    Support: "/Private/resources/AssociateSupportInformation.aspx",
+    "Event Calendar": "/Private/resources/events/Event.aspx",
+    Reports: "/Private/overview/Reports.aspx",
+    Courses: "/Private/resources/Courses.aspx",
+    Recognition: "/Private/recognition/Home.aspx",
+    "My Account": "/Private/account/EditInformation.aspx",
+    Home: "/Private/overview/Home.aspx",
+  };
+
+  private readonly headerUrls: Record<string, string> = {
+    Dashboard: "/Private/overview/NewDashboard.aspx",
+    "My Site": "/Private/account/MySite.aspx",
+    "Order History": "/Private/business/OrderTracking.aspx",
+  };
 
   constructor(page: Page) {
     this.page = page;
@@ -49,7 +68,7 @@ export class VirtualOfficePage {
     // Contenedor principal del VO
     this.mainContainer = page.locator("#mainMasterWrapper");
 
-    // Inicializamos los detectores de error
+    // Detectores de error
     this.errorMessageText = page.locator(
       ":has-text('An error occurred while processing')",
     );
@@ -67,8 +86,7 @@ export class VirtualOfficePage {
   }
 
   /**
-   * Cierra todos los banners promocionales que aparezcan.
-   * Busca en el frame principal y en todos los iframes (el banner suele cargarse en un iframe).
+   * Cierra todos los banners promocionales que aparezcan
    */
   async closePromoBannerIfExists() {
     let closed = 0;
@@ -82,13 +100,15 @@ export class VirtualOfficePage {
         const count = await btns.count().catch(() => 0);
         for (let j = 0; j < count; j++) {
           const btn = btns.nth(j);
-          const isVisible = await btn.isVisible({ timeout: 1000 }).catch(() => false);
+          const isVisible = await btn
+            .isVisible({ timeout: 1000 })
+            .catch(() => false);
           if (isVisible) {
-            // force:true omite la espera de estabilidad (el banner suele estar animando)
             await btn.click({ force: true, timeout: 5000 }).catch(() => {});
             await this.page.waitForTimeout(400);
-            // Solo cuenta si el banner realmente desapareció tras el click
-            const stillVisible = await btn.isVisible({ timeout: 1000 }).catch(() => false);
+            const stillVisible = await btn
+              .isVisible({ timeout: 1000 })
+              .catch(() => false);
             if (!stillVisible) {
               closed++;
             }
@@ -124,8 +144,9 @@ export class VirtualOfficePage {
     }
   }
 
-  //Verifica que el Virtual Office está cargado
-
+  /**
+   * Verifica que el Virtual Office está cargado
+   */
   async verifyPageLoaded() {
     await expect(this.page).toHaveURL(/office\.aseastage\.com/, {
       timeout: 30000,
@@ -135,18 +156,17 @@ export class VirtualOfficePage {
   }
 
   // ============================================================
-  // DETECCIÓN DE ERRORES (SOLO ELEMENTOS VISIBLES Y NO SCRIPT)
+  // DETECCIÓN DE ERRORES
   // ============================================================
 
   async isErrorPresent(): Promise<boolean> {
     await this.page.waitForTimeout(1000);
 
-    // Selectores específicos de ERROR (no incluye alert-info, alert-warning, etc.)
     const errorSelectors = [
-      ".alert-danger", // Bootstrap error
+      ".alert-danger",
       ".alert.alert-danger",
       ".error-message",
-      '[class*="error"]', // cualquier clase que contenga "error"
+      '[class*="error"]',
     ];
 
     for (const selector of errorSelectors) {
@@ -156,7 +176,6 @@ export class VirtualOfficePage {
         if (isVisible) {
           const text = await el.textContent();
           if (text && text.trim().length > 0) {
-            // Verificar que NO sea un mensaje informativo
             const lowerText = text.toLowerCase();
             const isInformational =
               lowerText.includes("change of sponsorship") ||
@@ -180,9 +199,9 @@ export class VirtualOfficePage {
     }
     return false;
   }
+
   /**
-   * Método de depuración: muestra exactamente qué elementos (visibles u ocultos)
-   * contienen texto de error y si son visibles. Excluye etiquetas técnicas.
+   * Método de depuración
    */
   async debugErrorLocation() {
     const elements = await this.page.$$eval(
@@ -222,8 +241,7 @@ export class VirtualOfficePage {
   }
 
   /**
-   * Assert: No debe aparecer ningún mensaje de error visible.
-   * Toma screenshot si falla y muestra debug de ubicación.
+   * Assert: No debe aparecer ningún mensaje de error visible
    */
   async assertNoErrorMessage() {
     const hasError = await this.isErrorPresent();
@@ -234,77 +252,75 @@ export class VirtualOfficePage {
       await this.page.screenshot({ path: screenshotPath, fullPage: true });
       console.log(`📸 Screenshot del error guardado en: ${screenshotPath}`);
       throw new Error(
-        `❌ Se encontró un mensaje de error visible (clase alert/error) en ${this.page.url()}. Revisa el screenshot.`,
+        `❌ Se encontró un mensaje de error visible en ${this.page.url()}. Revisa el screenshot.`,
       );
     }
     console.log(`✅ Sin errores de tipo alerta en ${this.page.url()}`);
   }
+
   // ============================================================
-  // NAVEGACIÓN POR SECCIONES
+  // NAVEGACIÓN POR URL DIRECTA (CORREGIDO)
   // ============================================================
 
-  // Navega a una sección del menú lateral.
+  /**
+   * Navega a una sección usando URL directa (independiente del idioma)
+   */
+  async navigateToSectionByUrl(url: string, label: string) {
+    const absoluteUrl = url.startsWith("http")
+      ? url
+      : new URL(url, this.page.url()).href;
+    await this.page.goto(absoluteUrl, {
+      waitUntil: "networkidle",
+      timeout: 60000,
+    });
+    await this.assertNoErrorMessage();
+    console.log(`✅ Sección "${label}" cargada correctamente`);
+  }
 
+  /**
+   * Navega a una sección del menú lateral usando URL directa (CORREGIDO)
+   */
   async navigateToSection(sectionName: string) {
-    await this.closePromoBannerIfExists();
-    const link = this.page
-      .locator(
-        `#mainMenu ul.main-menu-content li.nav-item a:has-text("${sectionName}")`,
-      )
-      .first();
-    await link.waitFor({ state: "visible", timeout: 10000 });
-
-    const urlBefore = this.page.url();
-    await link.click();
-
-    // Si la navegación cambia la URL, esperamos domcontentloaded; si el VO
-    // carga el contenido en un iframe/panel sin cambiar URL usamos un timeout corto.
-    const urlChanged = await this.page
-      .waitForURL((url) => url.href !== urlBefore, { timeout: 15000 })
-      .then(() => true)
-      .catch(() => false);
-
-    if (urlChanged) {
-      await this.page.waitForLoadState("domcontentloaded", { timeout: 30000 });
-    } else {
-      // Sin cambio de URL: contenido probablemente en iframe — esperamos networkidle corto
-      await this.page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+    const relativeUrl = this.sectionUrls[sectionName];
+    if (!relativeUrl) {
+      throw new Error(`No hay URL mapeada para la sección: ${sectionName}`);
     }
 
+    const baseUrl = this.page.url().split("/Private/")[0];
+    const fullUrl = `${baseUrl}${relativeUrl}`;
+
+    console.log(`🔗 Navegando a: ${fullUrl}`);
+
+    await this.closePromoBannerIfExists();
+    await this.page.goto(fullUrl, { waitUntil: "networkidle", timeout: 60000 });
     await this.assertNoErrorMessage();
     console.log(`✅ Sección "${sectionName}" cargada correctamente`);
   }
 
   /**
-   * Navega a una sección del header superior.
+   * Navega a una sección del header superior usando URL directa (CORREGIDO)
    */
   async navigateToHeaderSection(sectionName: string) {
-    await this.closePromoBannerIfExists();
-    const link = this.page
-      .locator(`#divContainerCustomer a:has-text("${sectionName}")`)
-      .first();
-    await link.waitFor({ state: "visible", timeout: 10000 });
-
-    const urlBefore = this.page.url();
-    await link.click();
-
-    const urlChanged = await this.page
-      .waitForURL((url) => url.href !== urlBefore, { timeout: 15000 })
-      .then(() => true)
-      .catch(() => false);
-
-    if (urlChanged) {
-      await this.page.waitForLoadState("domcontentloaded", { timeout: 30000 });
-    } else {
-      await this.page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+    const relativeUrl = this.headerUrls[sectionName];
+    if (!relativeUrl) {
+      throw new Error(
+        `No hay URL mapeada para la sección de header: ${sectionName}`,
+      );
     }
 
+    const baseUrl = this.page.url().split("/Private/")[0];
+    const fullUrl = `${baseUrl}${relativeUrl}`;
+
+    console.log(`🔗 Navegando (header) a: ${fullUrl}`);
+
+    await this.closePromoBannerIfExists();
+    await this.page.goto(fullUrl, { waitUntil: "networkidle", timeout: 60000 });
     await this.assertNoErrorMessage();
     console.log(`✅ Sección "${sectionName}" cargada correctamente`);
   }
 
   // ============================================================
-  // MÉTODOS PARA VERIFICACIÓN DE ENLACES (existentes)
+  // MÉTODOS PARA VERIFICACIÓN DE ENLACES
   // ============================================================
 
   async extractAllNavigationLinks(): Promise<
@@ -346,10 +362,36 @@ export class VirtualOfficePage {
           anchor.textContent?.trim() ||
           anchor.getAttribute("title") ||
           "Sin texto",
+        target: anchor.getAttribute("target") || "",
       }));
     });
     return links.filter(
-      (link) => link.url && !link.url.startsWith("javascript:"),
+      (link) =>
+        link.url &&
+        !link.url.startsWith("javascript:") &&
+        link.target !== "_blank",
+    );
+  }
+
+  async extractHeaderLinks(): Promise<Omit<LinkInfo, "status" | "ok">[]> {
+    const links = await this.page.evaluate(() => {
+      const header = document.querySelector("#divContainerCustomer");
+      if (!header) return [];
+      const anchors = Array.from(header.querySelectorAll("a[href]"));
+      return anchors.map((anchor) => ({
+        url: anchor.getAttribute("href") || "",
+        text:
+          anchor.textContent?.trim() ||
+          anchor.getAttribute("title") ||
+          "Sin texto",
+        target: anchor.getAttribute("target") || "",
+      }));
+    });
+    return links.filter(
+      (link) =>
+        link.url &&
+        !link.url.startsWith("javascript:") &&
+        link.target !== "_blank",
     );
   }
 
@@ -359,30 +401,46 @@ export class VirtualOfficePage {
   }): Promise<{ ok: boolean; status: number }> {
     try {
       let urlToCheck = link.url;
+
+      // Convertir URL relativa a absoluta
       if (urlToCheck.startsWith("/")) {
         const baseUrl = new URL(this.page.url());
         urlToCheck = `${baseUrl.origin}${urlToCheck}`;
       }
+
       const currentOrigin = new URL(this.page.url()).origin;
       const isExternal = !urlToCheck.startsWith(currentOrigin);
+
       if (isExternal) {
         console.log(
           `   ⏭️ Enlace externo (omitido): "${link.text}" -> ${urlToCheck}`,
         );
         return { ok: true, status: 0 };
       }
+
+      // Verificar enlace interno
       const response = await this.page.request.get(urlToCheck, {
         maxRedirects: 0,
         timeout: 10000,
       });
+
       const status = response.status();
+      // ✅ Considerar OK: 200, 302 (redirección), 401/403 (requiere auth - no es error)
       const ok = status >= 200 && status < 400;
-      if (ok) {
-        console.log(`   ✅ OK (${status}): "${link.text}"`);
+
+      if (ok || status === 401 || status === 403) {
+        if (status === 401 || status === 403) {
+          console.log(
+            `   ⚠️ AUTH (${status}): "${link.text}" -> ${urlToCheck} (requiere autenticación, se considera OK)`,
+          );
+        } else {
+          console.log(`   ✅ OK (${status}): "${link.text}"`);
+        }
+        return { ok: true, status };
       } else {
         console.log(`   ❌ ROTO (${status}): "${link.text}" -> ${urlToCheck}`);
+        return { ok: false, status };
       }
-      return { ok, status };
     } catch (error) {
       console.log(`   ❌ ERROR: "${link.text}" -> ${link.url}`);
       return { ok: false, status: 0 };

@@ -7,15 +7,57 @@ import { InfoPage } from "../../pages/InfoPage";
 import { EnrollCheckoutPage } from "../../pages/EnrollAssociate/EnrollCheckoutPage";
 import { EnrollCompletePage } from "../../pages/EnrollAssociate/EnrollCompletePage";
 import { generateEnrollData } from "../../fixtures/enrollData";
-import { userInfo } from "../../fixtures/userData";
-import {
-  products,
-  subscriptionBundles,
-  distributor,
-} from "../../fixtures/productData";
+import { userInfo, userInfoLive } from "../../fixtures/userData";
+import { products } from "../../fixtures/productData";
+import { users } from "../../fixtures/credentials";
+
+interface ProjectMetadata {
+  env?: string;
+  voPort?: string;
+}
+
+interface TestConfig {
+  env: string;
+  voPort: string | undefined;
+  user: { username: string; password: string };
+  info: typeof userInfo;
+}
 
 test.describe("Enrolamiento Subscription Customer", () => {
+  function getConfig(
+    projectName: string,
+    metadata?: ProjectMetadata,
+  ): TestConfig {
+    const env =
+      metadata?.env === "stage" || metadata?.env === "live"
+        ? metadata.env
+        : projectName === "stage"
+          ? "stage"
+          : "live";
+
+    const voPort =
+      metadata?.voPort !== undefined
+        ? metadata.voPort
+        : projectName === "live-port-1"
+          ? "10001"
+          : projectName === "live-port-2"
+            ? "10002"
+            : undefined;
+
+    const user = env === "stage" ? users.valid : users.validLive;
+    const info = env === "stage" ? userInfo : userInfoLive;
+
+    console.log(`    Configuración - Proyecto: ${projectName}`);
+    console.log(`   Entorno: ${env}`);
+    console.log(`   Puerto VO: ${voPort || "ninguno"}`);
+
+    return { env, voPort, user, info };
+  }
+
   test("Flujo completo: Subscription Customer", async ({ page }) => {
+    const project = test.info().project;
+    const config = getConfig(project.name, project.metadata as ProjectMetadata);
+
     const loginPage = new LoginPage(page);
     const productsPage = new ProductsPage(page);
     const productDetailPage = new ProductDetailPage(page);
@@ -30,9 +72,9 @@ test.describe("Enrolamiento Subscription Customer", () => {
 
     // PASO 1: Ir al shop y seleccionar mercado
     await test.step("Seleccionar mercado y continuar al shop", async () => {
-      await loginPage.goto();
+      await loginPage.gotoByEnv(config.env as "stage" | "live", config.voPort);
       await loginPage.btnShopHere.click();
-      await expect(page).toHaveURL(/shop\.aseastage\.com/);
+      await expect(page).toHaveURL(/\/products/);
     });
 
     // PASO 2: Seleccionar producto de suscripción
@@ -57,11 +99,10 @@ test.describe("Enrolamiento Subscription Customer", () => {
       await cartModalPage.proceedToCheckout();
     });
 
-    //  PASO 5: Página Info — llenar todos los campos (usuario nuevo, sin datos precargados)
+    // PASO 5: Página Info — llenar todos los campos (usuario nuevo, sin datos precargados)
     await test.step("Llenar información del nuevo usuario", async () => {
       await infoPage.verifyPageLoaded();
 
-      //Llenar basic info manualmente
       await infoPage.fillBasicInfo({
         email: enrollData.email,
         firstName: enrollData.firstName,
@@ -69,16 +110,9 @@ test.describe("Enrolamiento Subscription Customer", () => {
         phone: enrollData.phone,
       });
 
-      // Llenar dirección
-      await infoPage.fillShippingAddress(userInfo.address);
-
-      // Guardar y esperar loading
+      await infoPage.fillShippingAddress(config.info.address);
       await infoPage.saveAddress();
-
-      // Seleccionar shipping
-      await infoPage.selectSubscriptionShipping(userInfo.shipping.subscription);
-
-      // Continuar al checkout
+      await infoPage.selectSubscriptionShipping(config.info.shipping.subscription);
       await infoPage.continueToCheckout();
     });
 
@@ -86,7 +120,7 @@ test.describe("Enrolamiento Subscription Customer", () => {
     let totals: { orderTotal: string; subscriptionTotal: string };
     await test.step("Completar checkout con referido", async () => {
       totals = await enrollCheckout.completeSCCheckout(
-        userInfo.card,
+        config.info.card,
         {
           username: enrollData.username,
           password: enrollData.password,

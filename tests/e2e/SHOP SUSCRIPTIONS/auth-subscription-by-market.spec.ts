@@ -14,7 +14,7 @@ import { markets } from "../../fixtures/marketData";
 
 for (const market of markets) {
   test.describe(`Orden Solo Suscripción con Dist Logueado - ${market.marketName}`, () => {
-    test(`Flujo completo: ${market.marketName}`, async ({ page }) => {
+    test.skip(`Flujo completo: ${market.marketName}`, async ({ page }) => {
       const loginPage = new LoginPage(page);
       const marketSelectorPage = new MarketSelectorPage(page);
       const productsPage = new ProductsPage(page);

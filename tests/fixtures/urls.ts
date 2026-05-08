@@ -10,6 +10,10 @@ export const urls = {
     base: "https://oscar.aseastage.com",
     login: "https://oscar.aseastage.com/",
   },
+  oscarLive: {
+    base: "https://corporate.myasealive.com/",
+    login: "https://corporate.myasealive.com/",
+  },
 
   shopLive: {
     base: "https://shop.aseaglobal.com/",

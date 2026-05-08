@@ -22,6 +22,18 @@ export class ProductsPage {
     await this.page.goto(urls.shop.products);
   }
 
+  async gotoByEnv(env: "stage" | "live", port?: string) {
+    await this.page.goto(
+      env === "live" ? urls.shopLive.products : urls.shop.products,
+    );
+    if (port) {
+      const url = new URL(this.page.url());
+      url.port = port;
+      console.log(`🔀 Redirigiendo productos a puerto ${port}: ${url.href}`);
+      await this.page.goto(url.href);
+    }
+  }
+
   // ✅ Esperar que la página cargue
   async verifyPageLoaded() {
     await expect(this.productNames.first()).toBeVisible();

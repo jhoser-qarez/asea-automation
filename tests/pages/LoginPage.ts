@@ -49,11 +49,17 @@ export class LoginPage {
     await expect(this.getUsernameLabel(username)).toContainText(username);
   }
 
-  async gotoByEnv(env: "stage" | "live") {
+  async gotoByEnv(env: "stage" | "live", port?: string) {
     await this.page.context().clearCookies();
     await this.page.context().clearPermissions();
     await this.page.goto(
       env === "live" ? urls.shopLive.login : urls.shop.login,
     );
+    if (port) {
+      const url = new URL(this.page.url());
+      url.port = port;
+      console.log(`🔀 Redirigiendo shop a puerto ${port}: ${url.href}`);
+      await this.page.goto(url.href);
+    }
   }
 }

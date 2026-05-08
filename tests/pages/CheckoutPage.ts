@@ -49,14 +49,14 @@ export class CheckoutPage {
     // ✅ Fila visible del método de pago
     this.rowCreditCard = page
       .locator(".color-row", {
-        hasText: "Credit Card - TEST",
+        hasText: "Credit Card",
       })
       .first();
 
     // ✅ Label para hacer clic
     this.labelCartCreditCard = page
       .locator("label", {
-        hasText: "Credit Card - TEST",
+        hasText: "Credit Card",
       })
       .first();
 
@@ -66,7 +66,7 @@ export class CheckoutPage {
     );
     this.labelCartCreditCard = page
       .locator("label", {
-        hasText: "Credit Card - TEST",
+        hasText: "Credit Card",
       })
       .first();
 

@@ -9,15 +9,57 @@ import { CheckoutPage } from "../pages/CheckoutPage";
 import { CompletePage } from "../pages/CompletePage";
 import { users } from "../fixtures/credentials";
 import { products } from "../fixtures/productData";
-import { userInfo } from "../fixtures/userData";
+import { userInfo, userInfoLive } from "../fixtures/userData";
+
+// Definir tipos para metadata y configuración
+interface ProjectMetadata {
+  env?: string;
+  voPort?: string;
+}
+
+interface TestConfig {
+  env: string;
+  voPort: string | undefined;
+  user: { username: string; password: string };
+  info: typeof userInfo;
+}
 
 test.describe("Orden con Will Call - Dist Logueado USA", () => {
-  // ─────────────────────────────────────────────────────────────────────────
-  // TEST 1: Mismo producto en Order + Suscripción con Will Call
-  // ─────────────────────────────────────────────────────────────────────────
+  // Helper para obtener configuración desde la metadata del proyecto
+  function getConfig(
+    projectName: string,
+    metadata?: ProjectMetadata,
+  ): TestConfig {
+    const env =
+      metadata?.env === "stage" || metadata?.env === "live"
+        ? metadata.env
+        : projectName === "stage"
+          ? "stage"
+          : "live";
+
+    const voPort =
+      metadata?.voPort !== undefined
+        ? metadata.voPort
+        : projectName === "live-port-1"
+          ? "10001"
+          : projectName === "live-port-2"
+            ? "10002"
+            : undefined;
+
+    const user = env === "stage" ? users.valid : users.validLive;
+    const info = env === "stage" ? userInfo : userInfoLive;
+
+    console.log(`    Configuración - Proyecto: ${projectName}`);
+    console.log(`   Entorno: ${env}`);
+    console.log(`   Puerto VO: ${voPort || "ninguno"}`);
+
+    return { env, voPort, user, info };
+  }
   test("Flujo completo: mismo producto en Order y Suscripción con Will Call", async ({
     page,
   }) => {
+    const project = test.info().project;
+    const config = getConfig(project.name, project.metadata as ProjectMetadata);
     const loginPage = new LoginPage(page);
     const willCallPage = new WillCallPage(page);
     const productsPage = new ProductsPage(page);
@@ -29,9 +71,9 @@ test.describe("Orden con Will Call - Dist Logueado USA", () => {
 
     // 🔐 PASO 1: Login
     await test.step("Login", async () => {
-      await loginPage.goto();
-      await loginPage.login(users.valid.username, users.valid.password);
-      await loginPage.verifyLoginSuccess(users.valid.username);
+      await loginPage.gotoByEnv(config.env as "stage" | "live", config.voPort);
+      await loginPage.login(config.user.username, config.user.password);
+      await loginPage.verifyLoginSuccess(config.user.username);
     });
 
     // 🚚 PASO 2: Seleccionar Will Call desde el header
@@ -41,7 +83,10 @@ test.describe("Orden con Will Call - Dist Logueado USA", () => {
 
     // 🛍️ PASO 3: Seleccionar producto
     await test.step("Seleccionar producto", async () => {
-      await productsPage.goto();
+      await productsPage.gotoByEnv(
+        config.env as "stage" | "live",
+        config.voPort,
+      );
       await productsPage.verifyPageLoaded();
       await productsPage.selectProductByName(products.default.name);
       await expect(page).toHaveURL(/\/products\/\d+/);
@@ -79,30 +124,32 @@ test.describe("Orden con Will Call - Dist Logueado USA", () => {
     await test.step("Verificar info y continuar (Will Call)", async () => {
       await infoPage.verifyPageLoaded();
       await willCallPage.verifyWillCallBanner();
-      await infoPage.completeInfoPageWillCall(userInfo.basic);
+      await infoPage.completeInfoPageWillCall(config.info.basic);
     });
 
     // 💳 PASO 9: Checkout con billing address obligatorio
     let totals: { orderTotal: string; subscriptionTotal: string };
     await test.step("Completar checkout con billing address (Will Call)", async () => {
       totals = await checkoutPage.completeCheckoutWillCall(
-        userInfo.card,
-        userInfo.address,
+        config.info.card,
+        config.info.address,
       );
     });
 
     // 🎉 PASO 10: Confirmación
     await test.step("Verificar confirmación de orden", async () => {
-      await completePage.verifyCompleteOrder(userInfo.basic.firstName, totals);
+      await completePage.verifyCompleteOrder(
+        config.info.basic.firstName,
+        totals,
+      );
     });
   });
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // TEST 2: Productos diferentes en Order y Suscripción con Will Call
-  // ─────────────────────────────────────────────────────────────────────────
   test("Flujo completo: productos diferentes en Order y Suscripción con Will Call", async ({
     page,
   }) => {
+    const project = test.info().project;
+    const config = getConfig(project.name, project.metadata as ProjectMetadata);
     const loginPage = new LoginPage(page);
     const willCallPage = new WillCallPage(page);
     const productsPage = new ProductsPage(page);
@@ -114,9 +161,9 @@ test.describe("Orden con Will Call - Dist Logueado USA", () => {
 
     // 🔐 PASO 1: Login
     await test.step("Login", async () => {
-      await loginPage.goto();
-      await loginPage.login(users.valid.username, users.valid.password);
-      await loginPage.verifyLoginSuccess(users.valid.username);
+      await loginPage.gotoByEnv(config.env as "stage" | "live", config.voPort);
+      await loginPage.login(config.user.username, config.user.password);
+      await loginPage.verifyLoginSuccess(config.user.username);
     });
 
     // 🚚 PASO 2: Seleccionar Will Call desde el header
@@ -126,7 +173,10 @@ test.describe("Orden con Will Call - Dist Logueado USA", () => {
 
     // 🛍️ PASO 3: Seleccionar producto para Today's Order
     await test.step("Seleccionar producto para Today's Order", async () => {
-      await productsPage.goto();
+      await productsPage.gotoByEnv(
+        config.env as "stage" | "live",
+        config.voPort,
+      );
       await productsPage.verifyPageLoaded();
       await productsPage.selectProductByName(products.todayOrder.name);
       await expect(page).toHaveURL(/\/products\/\d+/);
@@ -178,21 +228,24 @@ test.describe("Orden con Will Call - Dist Logueado USA", () => {
     await test.step("Verificar info y continuar (Will Call)", async () => {
       await infoPage.verifyPageLoaded();
       await willCallPage.verifyWillCallBanner();
-      await infoPage.completeInfoPageWillCall(userInfo.basic);
+      await infoPage.completeInfoPageWillCall(config.info.basic);
     });
 
     // 💳 PASO 10: Checkout con billing address obligatorio
     let totals: { orderTotal: string; subscriptionTotal: string };
     await test.step("Completar checkout con billing address (Will Call)", async () => {
       totals = await checkoutPage.completeCheckoutWillCall(
-        userInfo.card,
-        userInfo.address,
+        config.info.card,
+        config.info.address,
       );
     });
 
     // 🎉 PASO 11: Confirmación
     await test.step("Verificar confirmación de orden", async () => {
-      await completePage.verifyCompleteOrder(userInfo.basic.firstName, totals);
+      await completePage.verifyCompleteOrder(
+        config.info.basic.firstName,
+        totals,
+      );
     });
   });
 });
