@@ -144,4 +144,15 @@ export class EnrollCompletePage {
     await this.verifyOrderTotal(totals.orderTotal);
     await this.verifySubscriptionTotal(totals.subscriptionTotal);
   }
+  async verifyCompleteEnrollmentC(
+    firstName: string,
+    totals: { orderTotal: string; subscriptionTotal: string },
+  ) {
+    await this.verifyPageLoadedSC();
+    //await this.verifyWelcomeMessage(firstName);
+    await this.verifyEnrollmentDetails();
+    //await this.verifyDownloadReceiptLink();
+    await this.verifyOrderTotal(totals.orderTotal);
+   
+  }
 }

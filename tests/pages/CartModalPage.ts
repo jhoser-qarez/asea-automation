@@ -101,6 +101,12 @@ export class CartModalPage {
     await this.btnCheckout.click();
     await expect(this.page).toHaveURL(/\/info/);
   }
+  
+  // Ir a seleccionar suscription 
+  async proceedToSuscriptionPage() {
+    await this.btnCheckout.click();
+    await expect(this.page).toHaveURL(/\/subscription/);
+  }
 
   async proceedToNextStep() {
     await this.btnNext.click();

@@ -585,4 +585,49 @@ export class EnrollCheckoutPage {
 
     return { orderTotal, subscriptionTotal };
   }
+
+  async completeCCheckout(
+    card: {
+      name: string;
+      number: string;
+      expMonth: string;
+      expYear: string;
+      cvv: string;
+    },
+    enrollData: {
+      username: string;
+      password: string;
+    },
+    referral:
+      | { type: "name"; firstName: string; lastName: string }
+      | { type: "id"; sponsorId: string }
+      | { type: "none" },
+  ): Promise<{ orderTotal: string; subscriptionTotal: string }> {
+    await this.verifyPageLoaded();
+    await this.selectCreditCardPayment();
+    await this.fillCardDetails(card);
+    await this.verifyTodayOrderBillingAddress();
+    
+
+    // ✅ Sección de referidos
+    if (referral.type === "name") {
+      await this.selectReferralByName(referral.firstName, referral.lastName);
+    } else if (referral.type === "id") {
+      await this.selectReferralById(referral.sponsorId);
+    } else {
+      await this.selectNoReferral();
+    }
+
+    await this.fillCredentials(enrollData.username, enrollData.password);
+
+    await this.acceptAgreements();
+    await this.page.waitForLoadState("networkidle", { timeout: 15000 });
+    await this.page.waitForTimeout(1000);
+
+    const orderTotal = await this.captureOrderTotal();
+    const subscriptionTotal = await this.captureSubscriptionTotal();
+    await this.placeOrder();
+
+    return { orderTotal, subscriptionTotal };
+  }
 }

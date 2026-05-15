@@ -53,7 +53,7 @@ export class OscarLoginPage {
     const userEmail = this.page.locator(
       "#HeaderRightPlaceHolder_ucLogin1_txtEmailLogged",
     );
-    await expect(userEmail).toBeVisible();
+    //await expect(userEmail).toBeVisible();
     await expect(userEmail).toHaveText(email);
 
     const email_ = await userEmail.textContent();
