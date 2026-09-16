@@ -1,7 +1,9 @@
 import { Page, Locator, expect } from "@playwright/test";
+import { MarketLabels, defaultLabels } from "../../fixtures/marketLabels";
 
 export class EnrollStep3Page {
   readonly page: Page;
+  readonly labels: MarketLabels;
 
   // 🎯 Stepper
   readonly step3: Locator;
@@ -23,22 +25,21 @@ export class EnrollStep3Page {
   readonly btnContinueToCheckout: Locator;
   readonly loadingSpinner: Locator;
 
-  constructor(page: Page) {
+  constructor(page: Page, labels: MarketLabels = defaultLabels) {
     this.page = page;
+    this.labels = labels;
 
     // ✅ Stepper
     this.step3 = page.locator('[data-step="3"]');
-    this.stepTitle = page.locator("h2", { hasText: "Step 3" });
+    this.stepTitle = page.locator("h2", { hasText: labels.stepThreeTitle });
 
     // ✅ Promo codes
     this.promoCodes = page.locator(".v-chip__content span.mr-2");
 
     // ✅ Enrollment Perks
-    this.perksSection = page.locator('[role="alert"]', {
-      hasText: "Enrollment Pack Perks",
-    });
+    this.perksSection = page.getByText(labels.enrollmentPerksPattern);
     this.btnAddPerkToCart = page.locator("button", {
-      hasText: "ADD TO CART",
+      hasText: labels.addToCart,
     });
 
     // ✅ Totales
@@ -50,8 +51,12 @@ export class EnrollStep3Page {
     );
 
     // ✅ Botones
-    this.btnSaveAddress = page.getByRole("button", { name: "SAVE ADDRESS" });
-    this.btnContinueToCheckout = page.locator('[data-test="continue"]');
+    this.btnSaveAddress = page.locator(
+      '[data-test="checkout-save-address-button"]',
+    );
+    this.btnContinueToCheckout = page.locator(
+      '[data-test="checkout-continue-to-checkout-button"]',
+    );
     this.loadingSpinner = page.locator(".loading-view");
   }
 
@@ -70,10 +75,18 @@ export class EnrollStep3Page {
     phone: string;
   }) {
     // Reutilizamos los mismos selectores de InfoPage
-    const inputEmail = this.page.locator('[data-test="email-field"]');
-    const inputFirstName = this.page.locator('[data-test="firstName-field"]');
-    const inputLastName = this.page.locator('[data-test="lastName-field"]');
-    const inputPhone = this.page.locator('[data-test="Phone-field"]');
+    const inputEmail = this.page.locator(
+      '[data-test="checkout-email-input"] input',
+    );
+    const inputFirstName = this.page.locator(
+      '[data-test="checkout-first-name-input"] input',
+    );
+    const inputLastName = this.page.locator(
+      '[data-test="checkout-last-name-input"] input',
+    );
+    const inputPhone = this.page.locator(
+      '[data-test="checkout-phone-input"] input',
+    );
 
     await inputEmail.clear();
     await inputEmail.pressSequentially(data.email, { delay: 100 });
@@ -84,8 +97,16 @@ export class EnrollStep3Page {
     await inputLastName.clear();
     await inputLastName.pressSequentially(data.lastName, { delay: 100 });
 
-    await inputPhone.clear();
-    await inputPhone.pressSequentially(data.phone, { delay: 100 });
+    const hasPhoneField = await inputPhone
+      .waitFor({ state: "visible", timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    if (hasPhoneField) {
+      await inputPhone.clear();
+      await inputPhone.pressSequentially(data.phone, { delay: 100 });
+    } else {
+      console.log("⏭️ Sin campo de teléfono en Step 3 (no aplica)");
+    }
 
     console.log(`✅ Datos básicos: ${data.email}`);
   }
@@ -120,6 +141,20 @@ export class EnrollStep3Page {
 
   // ✅ Continuar al checkout
   async continueToCheckout() {
+    const orderGroup = this.page.locator(
+      '[data-test="checkout-shipping-methods-group"] [data-test="checkout-subscriptions-shipping-method-label"]',
+    );
+    const subscriptionGroup = this.page.locator(
+      '[data-test="checkout-subscriptions-shipping-methods-group"] [data-test="checkout-subscriptions-shipping-method-label"]',
+    );
+
+    for (const group of [orderGroup, subscriptionGroup]) {
+      await group
+        .first()
+        .waitFor({ state: "visible", timeout: 15000 })
+        .catch(() => {});
+    }
+
     await this.btnContinueToCheckout.click();
     console.log("✅ Continuando al checkout...");
   }

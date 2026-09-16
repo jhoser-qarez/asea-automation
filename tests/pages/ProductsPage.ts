@@ -13,7 +13,7 @@ export class ProductsPage {
     this.page = page;
 
     // ✅ Selectores con data-cy (estables)
-    this.productNames = page.locator('[data-cy="card-info-name"]');
+    this.productNames = page.locator('[data-test="product-title"]');
     this.productCards = page.locator('a[data-cy="view-details"]:has(button)');
     this.btnViewProduct = page.locator('a[data-cy="view-details"]:has(button)');
   }
@@ -42,7 +42,7 @@ export class ProductsPage {
   // ✅ Seleccionar producto por nombre
   async selectProductByName(productName: string) {
     await this.page
-      .locator('a[data-cy="view-details"]')
+      .locator('[data-test="product-title"]')
       .getByText(productName, { exact: true })
       .click();
   }

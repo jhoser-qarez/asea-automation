@@ -7,54 +7,10 @@ import { CartModalPage } from "../pages/CartModalPage";
 import { InfoPage } from "../pages/InfoPage";
 import { CheckoutPage } from "../pages/CheckoutPage";
 import { CompletePage } from "../pages/CompletePage";
-import { users } from "../fixtures/credentials";
 import { products } from "../fixtures/productData";
-import { userInfo, userInfoLive } from "../fixtures/userData";
-
-// Definir tipos para metadata y configuración
-interface ProjectMetadata {
-  env?: string;
-  voPort?: string;
-}
-
-interface TestConfig {
-  env: string;
-  voPort: string | undefined;
-  user: { username: string; password: string };
-  info: typeof userInfo;
-}
+import { ProjectMetadata, getConfig } from "../utils/testConfig";
 
 test.describe("Orden con Will Call - Dist Logueado USA", () => {
-  // Helper para obtener configuración desde la metadata del proyecto
-  function getConfig(
-    projectName: string,
-    metadata?: ProjectMetadata,
-  ): TestConfig {
-    const env =
-      metadata?.env === "stage" || metadata?.env === "live"
-        ? metadata.env
-        : projectName === "stage"
-          ? "stage"
-          : "live";
-
-    const voPort =
-      metadata?.voPort !== undefined
-        ? metadata.voPort
-        : projectName === "live-port-1"
-          ? "10001"
-          : projectName === "live-port-2"
-            ? "10002"
-            : undefined;
-
-    const user = env === "stage" ? users.valid : users.validLive;
-    const info = env === "stage" ? userInfo : userInfoLive;
-
-    console.log(`    Configuración - Proyecto: ${projectName}`);
-    console.log(`   Entorno: ${env}`);
-    console.log(`   Puerto VO: ${voPort || "ninguno"}`);
-
-    return { env, voPort, user, info };
-  }
   test("Flujo completo: mismo producto en Order y Suscripción con Will Call", async ({
     page,
   }) => {

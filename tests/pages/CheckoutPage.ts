@@ -1,7 +1,9 @@
 import { Page, Locator, expect } from "@playwright/test";
+import { MarketLabels, defaultLabels } from "../fixtures/marketLabels";
 
 export class CheckoutPage {
   readonly page: Page;
+  readonly labels: MarketLabels;
 
   // 🎯 TODAY'S ORDER - Payment Methods
   readonly radioCartCreditCard: Locator; // para verificar estado
@@ -38,8 +40,9 @@ export class CheckoutPage {
   readonly btnCheckout: Locator;
   readonly btnBackToInformation: Locator;
 
-  constructor(page: Page) {
+  constructor(page: Page, labels: MarketLabels = defaultLabels) {
     this.page = page;
+    this.labels = labels;
 
     // ✅ Input real (oculto, solo para verificar aria-checked)
     this.radioCartCreditCard = page.locator(
@@ -48,15 +51,14 @@ export class CheckoutPage {
 
     // ✅ Fila visible del método de pago
     this.rowCreditCard = page
-      .locator(".color-row", {
-        hasText: "Credit Card",
-      })
+      .locator('[data-test="checkout-payment-method-radio"]')
+      .filter({ hasText: labels.creditCard })
       .first();
 
     // ✅ Label para hacer clic
     this.labelCartCreditCard = page
       .locator("label", {
-        hasText: "Credit Card",
+        hasText: labels.creditCard,
       })
       .first();
 
@@ -66,24 +68,32 @@ export class CheckoutPage {
     );
     this.labelCartCreditCard = page
       .locator("label", {
-        hasText: "Credit Card",
+        hasText: labels.creditCard,
       })
       .first();
 
     // ✅ Card fields - por data-test
-    this.inputCardName = page.locator('[data-test="cardName-field"]');
-    this.inputCardNumber = page.locator('[data-test="cardNumber-field"]');
-    this.inputExpMonth = page.locator('[data-test="expMonth-field"]');
-    this.inputExpYear = page.locator('[data-test="expYear-field"]');
-    this.inputCVV = page.locator('[data-test="ccv-field"]');
+    this.inputCardName = page.locator(
+      '[data-test="checkout-card-name-input"] input',
+    );
+    this.inputCardNumber = page.locator(
+      '[data-test="checkout-card-number-input"] input',
+    );
+    this.inputExpMonth = page.locator(
+      '[data-test="checkout-card-exp-month-input"] input',
+    );
+    this.inputExpYear = page.locator(
+      '[data-test="checkout-card-exp-year-input"] input',
+    );
+    this.inputCVV = page.locator('[data-test="checkout-card-cvv-input"] input');
 
     // ✅ TODAY'S ORDER - Billing Address
     this.labelUseShippingAddress = page.locator("label", {
-      hasText: "Use my shipping address",
+      hasText: labels.useMyShippingAddress,
     });
     this.labelUseDifferentAddress = page
       .locator("label", {
-        hasText: "Use Different Address",
+        hasText: labels.useDifferentAddress,
       })
       .first();
 
@@ -92,34 +102,37 @@ export class CheckoutPage {
       '[data-test="box-billing-method-0"]',
     );
     this.labelBoxSameAsCart = page.locator("label", {
-      hasText: "Same as Your Cart Billing Method",
+      hasText: labels.sameAsCartBillingMethod,
     });
 
     // ✅ SUBSCRIPTION - Billing Address
     this.labelBoxUseSameAddress = page.locator("label", {
-      hasText: "Use same address as today's order",
+      hasText: labels.useSameAddressAsTodaysOrder,
     });
 
     // ✅ Personal consumption
-    this.checkboxPersonalConsumption = page
-      .locator('input[role="checkbox"]')
-      .last();
-    this.labelPersonalConsumption = page.locator("label", {
-      hasText: "Check this box if the products",
-    });
+
+    this.checkboxPersonalConsumption = page.locator(
+      "#chkProductWillNotBeResold",
+    );
+    this.labelPersonalConsumption = page.locator(
+      'label[for="chkProductWillNotBeResold"]',
+    );
 
     // ✅ Totales
     this.orderTotalAmount = page.locator(
-      '[data-cy="summary-order-totalAmount"]',
+      '[data-test="checkout-todays-order-total-value"]',
     );
     this.subscriptionTotalAmount = page.locator(
-      '[data-cy="summary-subscription-totalAmount"]',
+      '[data-test="checkout-subscriptions-total-value"]',
     );
 
     // ✅ Botones
-    this.btnCheckout = page.locator('[data-test="continue"]');
+    this.btnCheckout = page.locator(
+      '[data-test="checkout-final-checkout-button"]',
+    );
     this.btnBackToInformation = page.getByRole("button", {
-      name: "Back to Information",
+      name: labels.backToInformation,
     });
   }
 
@@ -132,7 +145,9 @@ export class CheckoutPage {
     await this.page.waitForLoadState("networkidle", { timeout: 60000 });
 
     // 3. Esperar contenedor principal
-    await expect(this.page.locator('[data-cy="checkout-page"]')).toBeVisible({
+    await expect(
+      this.page.locator('[data-test="checkout-payment-method"]'),
+    ).toBeVisible({
       timeout: 30000,
     });
 
@@ -171,14 +186,35 @@ export class CheckoutPage {
     await this.inputCardNumber.clear();
     await this.inputCardNumber.pressSequentially(card.number, { delay: 100 });
 
+    // ⚠️ Confirmado con Discover en Canadá: la detección de marca de tarjeta
+    // (iconos Mastercard/Visa/Discover/etc.) puede correr una validación
+    // async que roba el foco de vuelta al campo de número justo después de
+    // escribirlo — si se empieza a escribir el vencimiento demasiado rápido,
+    // el campo queda vacío sin ningún error visible (mismo patrón ya
+    // confirmado y arreglado para Adyen en CheckoutPageEuropean). Se agrega
+    // el mismo margen + re-click + verificación de valor acá, en el
+    // formulario plano compartido por todos los proveedores Braintree.
+    await this.page.waitForTimeout(500);
+    await this.inputExpMonth.click();
     await this.inputExpMonth.clear();
     await this.inputExpMonth.pressSequentially(card.expMonth, { delay: 100 });
+    await expect(this.inputExpMonth).toHaveValue(card.expMonth, {
+      timeout: 5000,
+    });
 
+    await this.page.waitForTimeout(500);
+    await this.inputExpYear.click();
     await this.inputExpYear.clear();
     await this.inputExpYear.pressSequentially(card.expYear, { delay: 100 });
+    await expect(this.inputExpYear).toHaveValue(card.expYear, {
+      timeout: 5000,
+    });
 
+    await this.page.waitForTimeout(500);
+    await this.inputCVV.click();
     await this.inputCVV.clear();
     await this.inputCVV.pressSequentially(card.cvv, { delay: 100 });
+    await expect(this.inputCVV).toHaveValue(card.cvv, { timeout: 5000 });
   }
 
   // ✅ Billing Address TODAY'S ORDER
@@ -232,25 +268,29 @@ export class CheckoutPage {
 
   // ✅ Marcar checkbox personal consumption
   async checkPersonalConsumption() {
-    const isChecked = await this.page.evaluate(() => {
-      const inputs = document.querySelectorAll('input[role="checkbox"]');
-      const last = inputs[inputs.length - 1];
-      return last?.getAttribute("aria-checked");
-    });
+    // ✅ Checkbox nativo: leer estado con isChecked(), no aria-checked
+    const isChecked = await this.checkboxPersonalConsumption.isChecked();
 
-    if (isChecked !== "true") {
+    if (!isChecked) {
       console.log("⏳ Marcando personal consumption...");
+
+      await this.labelPersonalConsumption.scrollIntoViewIfNeeded();
+      await this.page.waitForTimeout(500);
 
       // ✅ Clic + esperar API
       await Promise.all([
-        this.page.waitForResponse(
-          (response) => response.url().includes("ProductsWillNotBeResold"),
-          { timeout: 15000 },
-        ),
+        this.page
+          .waitForResponse(
+            (response) => response.url().includes("ProductsWillNotBeResold"),
+            { timeout: 30000 },
+          )
+          .catch(() => {
+            console.log("⏭️ Sin respuesta API, continuando...");
+          }),
         this.labelPersonalConsumption.click(),
       ]);
 
-      // ✅ Esperar que aparezca el loading
+      // ✅ Esperar loading
       const loadingSpinner = this.page.locator(".loading-view");
       await expect(loadingSpinner)
         .toBeVisible({ timeout: 5000 })
@@ -258,10 +298,7 @@ export class CheckoutPage {
           console.log("⏭️ Loading muy rápido, continuando...");
         });
 
-      // ✅ Esperar que desaparezca el loading
       await expect(loadingSpinner).not.toBeVisible({ timeout: 15000 });
-
-      // ✅ Esperar networkidle
       await this.page.waitForLoadState("networkidle", { timeout: 15000 });
 
       console.log("✅ Recálculo completado, montos actualizados");

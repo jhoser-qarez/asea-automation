@@ -1,7 +1,9 @@
 import { Page, Locator, expect } from "@playwright/test";
+import { MarketLabels, defaultLabels } from "../fixtures/marketLabels";
 
 export class InfoPage {
   readonly page: Page;
+  readonly labels: MarketLabels;
 
   // 🎯 Basic Info
   readonly inputEmail: Locator;
@@ -13,20 +15,34 @@ export class InfoPage {
   readonly inputAddress1: Locator;
   readonly inputAddress2: Locator;
   readonly inputCity: Locator;
-  readonly inputState: Locator;
+  readonly inputCityPlain: Locator;
+  readonly inputStateCombo: Locator;
+  readonly inputStatePlain: Locator;
   readonly inputZip: Locator;
+
+  // 🎯 Campos exclusivos de Taiwan
+  readonly inputGender: Locator; // combobox de solo clic, igual patrón que City
+  readonly inputBankAccountName: Locator; // #FullNameBeneficiary ("戶名")
+  readonly inputBankName: Locator; // #BankName ("銀行名稱")
+  readonly inputBankCity: Locator; // #BankCity ("銀行所在城市")
+  readonly inputBankCode: Locator; // #SortCode ("銀行代碼")
+  readonly inputNationalId: Locator; // #TaxId ("身分證字號")
+
+  // 🎯 Consentimiento de comunicaciones
+  readonly labelCompanyCommsYes: Locator; // label[for="CPF1_1"]
+  readonly labelCompanyCommsNo: Locator; // label[for="CPF1_0"]
+  readonly labelUplineCommsYes: Locator; // label[for="CPF2_1"]
+  readonly labelUplineCommsNo: Locator; // label[for="CPF2_0"]
 
   // 🎯 Save Address
   readonly btnSaveAddress: Locator;
   readonly loadingSpinner: Locator;
 
   // 🎯 Shipping Method - Order
-  readonly labelOrderStandard: Locator;
-  readonly labelOrderUSPS: Locator;
+  readonly orderShippingMethodOptions: Locator;
 
   // 🎯 Shipping Method - Subscription
-  readonly labelSubscriptionStandard: Locator;
-  readonly labelSubscriptionUSPS: Locator;
+  readonly subscriptionShippingMethodOptions: Locator;
 
   // 🎯 Totales
   readonly orderTotalAmount: Locator;
@@ -37,46 +53,62 @@ export class InfoPage {
   readonly btnContinueToCheckout: Locator;
   readonly btnBackToShopping: Locator;
 
-  constructor(page: Page) {
+  constructor(page: Page, labels: MarketLabels = defaultLabels) {
     this.page = page;
+    this.labels = labels;
 
     // ✅ Basic Info
-    this.inputEmail = page.locator('[data-test="email-field"]');
-    this.inputFirstName = page.locator('[data-test="firstName-field"]');
-    this.inputLastName = page.locator('[data-test="lastName-field"]');
-    this.inputPhone = page.locator('[data-test="Phone-field"]');
+    this.inputEmail = page.locator('[data-test="checkout-email-input"] input');
+    this.inputFirstName = page.locator(
+      '[data-test="checkout-first-name-input"] input',
+    );
+    this.inputLastName = page.locator(
+      '[data-test="checkout-last-name-input"] input',
+    );
+    this.inputPhone = page.locator('[data-test="checkout-phone-input"] input');
 
     // ✅ Shipping Address
-    this.inputAddress1 = page.locator('[data-test="AddressLine1-field"]');
-    this.inputAddress2 = page.locator('[data-test="AddressLine2-field"]');
-    this.inputCity = page.locator('[data-test="CountryCity-field"]');
-    this.inputState = page.locator('[data-test="State-field"]');
-    this.inputZip = page.locator('[data-test="Zip-field"]');
+    this.inputAddress1 = page.locator(
+      '[data-test="checkout-address-line1-input"] input',
+    );
+    this.inputAddress2 = page.locator(
+      '[data-test="checkout-address-line2-input"] input',
+    );
+    this.inputCity = page.locator('[data-test="checkout-city-input"] input');
+    this.inputCityPlain = page.locator('input[name="CountryCity"]');
+    this.inputStateCombo = page.locator(
+      '[data-test="checkout-state-select"] input',
+    );
+    this.inputStatePlain = page.locator("#State");
+    this.inputZip = page.locator('[data-test="checkout-zip-input"] input');
+
+    // ✅ Campos exclusivos de Taiwan (ver comentario junto a las
+    // declaraciones arriba).
+    this.inputGender = page.locator('input[name="Gender"]');
+    this.inputBankAccountName = page.locator("#FullNameBeneficiary");
+    this.inputBankName = page.locator("#BankName");
+    this.inputBankCity = page.locator("#BankCity");
+    this.inputBankCode = page.locator("#SortCode");
+    this.inputNationalId = page.locator("#TaxId");
+
+    this.labelCompanyCommsYes = page.locator('label[for="CPF1_1"]').last();
+    this.labelCompanyCommsNo = page.locator('label[for="CPF1_0"]').last();
+    this.labelUplineCommsYes = page.locator('label[for="CPF2_1"]').last();
+    this.labelUplineCommsNo = page.locator('label[for="CPF2_0"]').last();
 
     // ✅ Save Address y loading
     this.btnSaveAddress = page
-      .locator("div.row.justify-center button.primary")
+      .locator('[data-test="checkout-save-address-button"]')
       .first();
     this.loadingSpinner = page.locator(".loading-view");
 
-    // ✅ Shipping Method Order - por data-cy + texto
-    this.labelOrderStandard = page.locator(
-      '[data-cy="order-shipping-selector"] label',
-      { hasText: "Standard" },
-    );
-    this.labelOrderUSPS = page.locator(
-      '[data-cy="order-shipping-selector"] label',
-      { hasText: "USPS Direct" },
+    this.orderShippingMethodOptions = page.locator(
+      '[data-test="checkout-shipping-methods-group"] [data-test="checkout-subscriptions-shipping-method-label"]',
     );
 
     // ✅ Shipping Method Subscription
-    this.labelSubscriptionStandard = page.locator(
-      '[data-cy="subscription-shipping-selector"] label',
-      { hasText: "Standard" },
-    );
-    this.labelSubscriptionUSPS = page.locator(
-      '[data-cy="subscription-shipping-selector"] label',
-      { hasText: "USPS Direct" },
+    this.subscriptionShippingMethodOptions = page.locator(
+      '[data-test="checkout-subscriptions-shipping-methods-group"] [data-test="checkout-subscriptions-shipping-method-label"]',
     );
 
     // ✅ Totales
@@ -89,9 +121,11 @@ export class InfoPage {
     this.orderTotalTax = page.locator('[data-cy="summary-order-totalTax"]');
 
     // ✅ Botones
-    this.btnContinueToCheckout = page.locator('[data-test="continue"]');
+    this.btnContinueToCheckout = page.locator(
+      '[data-test="checkout-continue-to-checkout-button"]',
+    );
     this.btnBackToShopping = page
-      .getByRole("button", { name: "BACK TO SHOPPING" })
+      .getByRole("button", { name: labels.backToShopping })
       .first();
   }
 
@@ -144,14 +178,94 @@ export class InfoPage {
     }
   }
 
+  // ✅ Consentimiento de comunicaciones
+  async selectCommunicationPreferences(consent: "yes" | "no" = "no") {
+    const companyLabel =
+      consent === "yes" ? this.labelCompanyCommsYes : this.labelCompanyCommsNo;
+    const uplineLabel =
+      consent === "yes" ? this.labelUplineCommsYes : this.labelUplineCommsNo;
+
+    const visible = await companyLabel
+      .waitFor({ state: "visible", timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!visible) {
+      console.log(
+        "⏭️ Sin bloque de consentimiento de comunicaciones en este mercado",
+      );
+      return;
+    }
+
+    await companyLabel.click();
+    await uplineLabel.click();
+    console.log(`✅ Preferencias de comunicación: ${consent}`);
+  }
+
   // ✅ Llenar dirección de envío
   async fillShippingAddress(data: {
     address1: string;
     address2?: string;
     city: string;
     state?: string;
-    zip: string;
+    zip?: string;
+    gender?: "male" | "female";
+    bankAccountName?: string;
+    bankName?: string;
+    bankCity?: string;
+    bankCode?: string;
+    nationalId?: string;
   }) {
+    await this.selectCommunicationPreferences();
+
+    // Exclusivos de Taiwan
+    const fieldExists = (locator: Locator) =>
+      locator
+        .waitFor({ state: "visible", timeout: 3000 })
+        .then(() => true)
+        .catch(() => false);
+
+    if (data.gender && (await fieldExists(this.inputGender))) {
+      await this.inputGender.click();
+      const genderText = data.gender === "male" ? "男性" : "女性";
+      const genderOption = this.page.getByText(genderText, { exact: true });
+      await expect(genderOption.first()).toBeVisible({ timeout: 5000 });
+      await genderOption.first().click();
+    }
+    if (
+      data.bankAccountName &&
+      (await fieldExists(this.inputBankAccountName))
+    ) {
+      await this.inputBankAccountName.clear();
+      await this.inputBankAccountName.pressSequentially(data.bankAccountName, {
+        delay: 100,
+      });
+    }
+    if (data.bankName && (await fieldExists(this.inputBankName))) {
+      await this.inputBankName.clear();
+      await this.inputBankName.pressSequentially(data.bankName, {
+        delay: 100,
+      });
+    }
+    if (data.bankCity && (await fieldExists(this.inputBankCity))) {
+      await this.inputBankCity.clear();
+      await this.inputBankCity.pressSequentially(data.bankCity, {
+        delay: 100,
+      });
+    }
+    if (data.bankCode && (await fieldExists(this.inputBankCode))) {
+      await this.inputBankCode.clear();
+      await this.inputBankCode.pressSequentially(data.bankCode, {
+        delay: 100,
+      });
+    }
+    if (data.nationalId && (await fieldExists(this.inputNationalId))) {
+      await this.inputNationalId.clear();
+      await this.inputNationalId.pressSequentially(data.nationalId, {
+        delay: 100,
+      });
+    }
+
     await this.inputAddress1.clear();
     await this.inputAddress1.pressSequentially(data.address1, { delay: 100 });
 
@@ -160,17 +274,43 @@ export class InfoPage {
       await this.inputAddress2.pressSequentially(data.address2, { delay: 100 });
     }
 
-    await this.inputCity.clear();
-    await this.inputCity.pressSequentially(data.city, { delay: 100 });
+    const cityNormalVisible = await this.inputCity
+      .waitFor({ state: "visible", timeout: 3000 })
+      .then(() => true)
+      .catch(() => false);
 
-    if (data.state) {
-      await this.inputState.clear();
-      await this.inputState.pressSequentially(data.state, { delay: 100 });
-      await this.page.getByText(data.state, { exact: true }).first().click();
+    const cityInput = cityNormalVisible ? this.inputCity : this.inputCityPlain;
+
+    if (cityNormalVisible) {
+      await cityInput.clear();
+      await cityInput.pressSequentially(data.city, { delay: 100 });
+    } else {
+      await cityInput.click();
+      const cityOption = this.page.getByText(data.city, { exact: false });
+      await expect(cityOption.first()).toBeVisible({ timeout: 5000 });
+      await cityOption.first().click();
     }
 
-    await this.inputZip.clear();
-    await this.inputZip.pressSequentially(data.zip, { delay: 100 });
+    if (data.state) {
+      const comboVisible = await this.inputStateCombo
+        .waitFor({ state: "visible", timeout: 3000 })
+        .then(() => true)
+        .catch(() => false);
+
+      const stateInput = comboVisible
+        ? this.inputStateCombo
+        : this.inputStatePlain;
+
+      await stateInput.clear();
+      await stateInput.pressSequentially(data.state, { delay: 100 });
+      //await this.page.getByText(data.state, { exact: true }).first().click();
+    }
+
+    // ⚠️ Algunos mercados no tienen campo de código postal
+    if (data.zip) {
+      await this.inputZip.clear();
+      await this.inputZip.pressSequentially(data.zip, { delay: 100 });
+    }
   }
 
   // ✅ Guardar dirección y esperar loading
@@ -189,28 +329,25 @@ export class InfoPage {
   }
 
   // ✅ Seleccionar shipping method para la orden
-  async selectOrderShipping(method: "standard" | "usps" = "standard") {
-    // Esperar que los shipping methods sean visibles después del loading
-    await expect(this.labelOrderStandard).toBeVisible({ timeout: 10000 });
+  async selectOrderShipping(method: string | number = 1) {
+    const option =
+      typeof method === "number"
+        ? this.orderShippingMethodOptions.nth(method - 1)
+        : this.orderShippingMethodOptions.filter({ hasText: method });
 
-    if (method === "standard") {
-      await this.labelOrderStandard.click();
-    } else {
-      await this.labelOrderUSPS.click();
-    }
+    await expect(option).toBeVisible({ timeout: 10000 });
+    await option.click();
   }
 
   // ✅ Seleccionar shipping method para suscripción
-  async selectSubscriptionShipping(method: "standard" | "usps" = "standard") {
-    await expect(this.labelSubscriptionStandard).toBeVisible({
-      timeout: 10000,
-    });
+  async selectSubscriptionShipping(method: string | number = 1) {
+    const option =
+      typeof method === "number"
+        ? this.subscriptionShippingMethodOptions.nth(method - 1)
+        : this.subscriptionShippingMethodOptions.filter({ hasText: method });
 
-    if (method === "standard") {
-      await this.labelSubscriptionStandard.click();
-    } else {
-      await this.labelSubscriptionUSPS.click();
-    }
+    await expect(option).toBeVisible({ timeout: 10000 });
+    await option.click();
   }
 
   // ✅ Continuar al checkout
@@ -234,8 +371,8 @@ export class InfoPage {
       lastName: string;
       phone?: string;
     },
-    orderShipping: "standard" | "usps" = "standard",
-    subscriptionShipping: "standard" | "usps" = "standard",
+    orderShipping: string | number = 1,
+    subscriptionShipping: string | number = 1,
   ) {
     // 1. Verificar datos precargados
     await this.verifyBasicInfoPreloaded(basicInfo);

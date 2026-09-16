@@ -27,16 +27,29 @@ export class OscarSearchPage {
     // ✅ Esperar 2 segundos
     await this.page.waitForTimeout(3000);
 
-    // ✅ Clic y esperar la respuesta de la API
-    await Promise.all([
-      this.page.waitForResponse(
-        (response) => response.url().includes("SearchCriterias_V2"),
-        { timeout: 45000 },
-      ),
-      this.btnSearch.click({ force: true }),
-    ]);
+    await this._clickSearchAndWaitForResults();
 
     console.log(`🔍 Búsqueda completada: ${id}`);
+  }
+
+  private async _clickSearchAndWaitForResults(retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        await Promise.all([
+          this.page.waitForResponse(
+            (response) => response.url().includes("SearchCriterias_V2"),
+            { timeout: 15000 },
+          ),
+          this.btnSearch.click(),
+        ]);
+        return;
+      } catch (error) {
+        if (attempt === retries) throw error;
+        console.log(
+          `⏳ Sin respuesta de búsqueda, reintentando clic (${attempt}/${retries})...`,
+        );
+      }
+    }
   }
   // ✅ Buscar por otros criterios
   async searchBy(

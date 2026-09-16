@@ -1,7 +1,9 @@
 import { Page, Locator, expect } from "@playwright/test";
+import { MarketLabels, defaultLabels } from "../../fixtures/marketLabels";
 
 export class EnrollStep1Page {
   readonly page: Page;
+  readonly labels: MarketLabels;
 
   // 🎯 Stepper
   readonly step1: Locator;
@@ -16,8 +18,9 @@ export class EnrollStep1Page {
   readonly btnAddToCart: Locator;
   readonly btnBuildPack: Locator;
 
-  constructor(page: Page) {
+  constructor(page: Page, labels: MarketLabels = defaultLabels) {
     this.page = page;
+    this.labels = labels;
 
     // ✅ Stepper steps
     this.step1 = page.locator('[data-step="1"]');
@@ -25,20 +28,20 @@ export class EnrollStep1Page {
     this.step3 = page.locator('[data-step="3"]');
 
     // ✅ Sponsor name en el header
-    this.sponsorName = page.locator(".v-chip__content", {
-      hasText: "Sponsor Name:",
+    this.sponsorName = page.locator(".name-sponsor", {
+      hasText: labels.sponsorNamePrefix,
     });
 
     // ✅ Cards de packs
     this.packCards = page.locator('[data-cy="view-details"]');
 
     // ✅ Botones ADD TO CART de los packs
-    this.btnAddToCart = page.locator(
-      '[data-cy="add-to-cart-from-list-page-btn"]',
-    );
+    this.btnAddToCart = page.getByRole("button", { name: labels.addToCart });
 
     // ✅ Botón BUILD YOUR PACK
-    this.btnBuildPack = page.locator("button", { hasText: "BUILD YOUR PACK" });
+    this.btnBuildPack = page.locator("button", {
+      hasText: labels.buildYourPack,
+    });
   }
 
   // ✅ Verificar que estamos en Step 1
@@ -56,14 +59,15 @@ export class EnrollStep1Page {
   }
 
   // ✅ Agregar pack por nombre
+
   async addPackToCart(packName: string) {
-    // Encontrar el botón ADD TO CART del pack específico
-    const packCard = this.page.locator(".card", {
-      hasText: packName,
+    const escapedName = packName
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      .replace(/\s+/g, "\\s+");
+    const packHeading = this.page.locator("h1", {
+      hasText: new RegExp(`^\\s*${escapedName}\\s*$`),
     });
-    const btnAdd = packCard.locator(
-      '[data-cy="add-to-cart-from-list-page-btn"]',
-    );
+    const btnAdd = packHeading.locator("xpath=following::button[1]");
     await btnAdd.click();
     console.log(`✅ Pack agregado: ${packName}`);
   }

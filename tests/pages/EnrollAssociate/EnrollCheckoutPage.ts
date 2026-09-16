@@ -1,21 +1,21 @@
-import { Page, Locator, expect } from "@playwright/test";
+import { Page, Locator, Frame, FrameLocator, expect } from "@playwright/test";
+import { CheckoutPage } from "../CheckoutPage";
+import { MarketLabels, defaultLabels } from "../../fixtures/marketLabels";
+import { PaymentProvider } from "../../fixtures/paymentCases";
+import { users } from "../../fixtures/credentials";
 
-export class EnrollCheckoutPage {
-  readonly page: Page;
+// ✅ Datos del formulario embebido de Atome (Adyen "open invoice") —
 
-  // 🎯 Payment
-  readonly radioCartCreditCard: Locator;
-  readonly rowCreditCard: Locator;
-  readonly inputCardName: Locator;
-  readonly inputCardNumber: Locator;
-  readonly inputExpMonth: Locator;
-  readonly inputExpYear: Locator;
-  readonly inputCVV: Locator;
+export interface OpenInvoiceDetails {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  street: string;
+  postalCode: string;
+}
 
-  // 🎯 Billing Address
-  readonly labelUseShippingAddress: Locator;
-
-  // 🎯 Subscription
+// ✅ EnrollCheckoutPage extiende CheckoutPage
+export class EnrollCheckoutPage extends CheckoutPage {
   readonly radioBoxSameAsCart: Locator;
   readonly labelBoxSameAsCart: Locator;
 
@@ -47,65 +47,56 @@ export class EnrollCheckoutPage {
   readonly referralIdContainer: Locator;
   readonly inputReferralSponsorId: Locator;
 
-  // 🎯 Checkboxes
-  readonly labelPersonalConsumption: Locator;
+  // 🎯 Agreements — concepto propio de Enroll, CheckoutPage (US estándar)
+  // no tiene esto en absoluto.
   readonly labelAgreements: Locator;
-  readonly checkboxPersonalConsumption: Locator;
   readonly checkboxAgreements: Locator;
 
-  // 🎯 Totales
-  readonly orderTotalAmount: Locator;
-  readonly subscriptionTotalAmount: Locator;
+  // 🎯 Adyen ("Alternative Payments") — radio de nivel superior y campo de
+  // nombre del titular dentro del dropin.
+  readonly radioAdyenProvider: Locator;
+  readonly inputHolderName: Locator;
 
-  // 🎯 Botones
-  readonly btnCheckout: Locator;
-  readonly loadingSpinner: Locator;
+  // ✅ Qué proveedor terminó seleccionado, para que fillCardDetails()/
+  // placeOrder() sepan cómo continuar.
+  protected usingAdyenIframe = false;
+  // PayPal (BraintreeWithPayPal): no hay formulario de tarjeta; la
+  // autenticación se hace en el popup al confirmar la orden.
+  protected usingPayPal = false;
+  // GPay (BraintreeWithGPay): igual que PayPal, sin formulario de tarjeta.
+  protected usingGPay = false;
+  // Wallets dentro del dropin de Adyen (E-Banking/Atome/Boost — Malasia):
+  // Adyen redirige a un simulador externo en vez de usar el formulario.
+  protected usingAdyenRedirectMethod: PaymentProvider | null = null;
 
-  constructor(page: Page) {
-    this.page = page;
+  constructor(page: Page, labels: MarketLabels = defaultLabels) {
+    super(page, labels);
 
-    // ✅ Payment - igual que CheckoutPage
-    this.radioCartCreditCard = page.locator(
-      '[data-test="cart-billing-method-0"]',
+    this.radioAdyenProvider = page.locator(
+      'input[type="radio"][value="Adyen"]',
     );
-    this.rowCreditCard = page
-      .locator(".color-row", {
-        hasText: "Credit Card",
-      })
-      .first();
-    this.inputCardName = page.locator('[data-test="cardName-field"]');
-    this.inputCardNumber = page.locator('[data-test="cardNumber-field"]');
-    this.inputExpMonth = page.locator('[data-test="expMonth-field"]');
-    this.inputExpYear = page.locator('[data-test="expYear-field"]');
-    this.inputCVV = page.locator('[data-test="ccv-field"]');
-
-    // ✅ Billing Address
-    this.labelUseShippingAddress = page.locator("label", {
-      hasText: "Use my shipping address",
-    });
+    this.inputHolderName = page.locator('input[name="holderName"]');
 
     // ✅ Subscription mismo método
     this.radioBoxSameAsCart = page.locator(
-      '[data-test="box-billing-method-0"]',
+      'input[type="radio"][value="Same as Your Cart Billing Method"]',
     );
-    this.labelBoxSameAsCart = page.locator("label", {
-      hasText: "Same as Your Cart Billing Method",
+    this.labelBoxSameAsCart = page.locator('label[for="-1"]', {
+      hasText: labels.sameAsCartBillingMethod,
     });
 
-    // ✅ Birth Date - por data-cy
-    this.selectMonth = page.locator('[data-cy="month-field"]');
-    this.selectDay = page.locator('[data-cy="day-field"]');
-    this.inputYear = page.locator('[data-test="year-field"]');
+    // ✅ Birth Date
+    this.selectMonth = page.locator('input[name="dateMonth"]');
+    this.selectDay = page.locator('input[name="dateDay"]');
+    this.inputYear = page.locator('input[name="dateYear"]');
 
     // ✅ SSN
     this.inputSSN = page.locator('[data-test="GovermentId-field"]');
 
     // ✅ Username & Password
-    this.inputUsername = page.locator('[data-test="siteId-field"]');
-    this.inputPassword = page.locator('[data-test="password-field"]');
-    this.inputConfirmPassword = page.locator(
-      '[data-test="confirmPassword-field"]',
-    );
+    this.inputUsername = page.locator("#SiteId");
+    this.inputPassword = page.locator("#password");
+    this.inputConfirmPassword = page.locator("#confirmPassword");
 
     // ✅ Referral - radios por value (estable, no depende de id dinámico)
     this.radioSearchByName = page.locator('input[role="radio"][value="1"]');
@@ -132,128 +123,578 @@ export class EnrollCheckoutPage {
     this.inputReferralSponsorId =
       this.referralIdContainer.locator('input[type="text"]');
 
-    // ✅ Checkboxes
-    this.labelPersonalConsumption = page.locator("label", {
-      hasText:
-        "Check this box if the products in this order are for personal consumption",
-    });
-    this.checkboxPersonalConsumption = page
-      .locator('input[role="checkbox"]')
-      .first();
-    this.labelAgreements = page.locator("label", {
-      hasText: "I have read and agree to the following legal documents",
-    });
-    this.checkboxAgreements = page.locator('input[role="checkbox"]').last();
-
-    // ✅ Totales
-    this.orderTotalAmount = page.locator(
-      '[data-cy="summary-order-totalAmount"]',
-    );
-    this.subscriptionTotalAmount = page.locator(
-      '[data-cy="summary-subscription-totalAmount"]',
-    );
-
-    // ✅ Botones
-    this.btnCheckout = page.locator('[data-test="continue"]');
-    this.loadingSpinner = page.locator(".loading-view");
+    // El input real está oculto (class="hidden"); el elemento clickeable
+    // visible es su <label for="chkAgreePolicyAndTerms"> hermano.
+    this.checkboxAgreements = page.locator("#chkAgreePolicyAndTerms");
+    this.labelAgreements = page.locator('label[for="chkAgreePolicyAndTerms"]');
   }
 
-  // ✅ Verificar página cargada
-  async verifyPageLoaded() {
-    await expect(this.page).toHaveURL(/\/checkout/);
-    await this.page.waitForLoadState("networkidle", { timeout: 60000 });
-    await expect(this.page.locator('[data-cy="checkout-page"]')).toBeVisible({
-      timeout: 30000,
-    });
-
-    // ✅ Esperar métodos de pago
-    const isChecked = await this.page.evaluate(() => {
-      const input = document.querySelector(
-        '[data-test="cart-billing-method-0"]',
-      );
-      return input !== null;
-    });
-    console.log(`✅ Checkout de enrolamiento cargado`);
+  private cardNumberFrame(): FrameLocator {
+    return this.page.frameLocator(
+      'span[data-cse="encryptedCardNumber"] iframe',
+    );
+  }
+  private cardExpiryFrame(): FrameLocator {
+    return this.page.frameLocator(
+      'span[data-cse="encryptedExpiryDate"] iframe',
+    );
+  }
+  private cardCvvFrame(): FrameLocator {
+    return this.page.frameLocator(
+      'span[data-cse="encryptedSecurityCode"] iframe',
+    );
   }
 
-  // ✅ Seleccionar Credit Card
-  async selectCreditCardPayment() {
-    const isChecked = await this.page.evaluate(() => {
-      const input = document.querySelector(
-        '[data-test="cart-billing-method-0"]',
+  // ✅ Selección de método de pago.
+
+  override async selectCreditCardPayment(
+    provider?: PaymentProvider,
+    openInvoiceDetails?: OpenInvoiceDetails,
+  ) {
+    if (!provider) {
+      const adyenPresent = await this.radioAdyenProvider
+        .waitFor({ state: "attached", timeout: 5000 })
+        .then(() => true)
+        .catch(() => false);
+      const adyenIsDefault = adyenPresent
+        ? await this.radioAdyenProvider.isChecked().catch(() => false)
+        : false;
+
+      if (adyenIsDefault) {
+        await expect(
+          this.cardNumberFrame().locator(
+            'input[data-fieldtype="encryptedCardNumber"]',
+          ),
+        ).toBeVisible({ timeout: 30000 });
+        this.usingAdyenIframe = true;
+        console.log("✅ Adyen seleccionado");
+        return;
+      }
+
+      this.usingAdyenIframe = false;
+      await super.selectCreditCardPayment();
+      console.log(
+        "✅ Proveedor por defecto seleccionado (formulario de tarjeta plano)",
       );
-      return input?.getAttribute("aria-checked");
-    });
-    if (isChecked !== "true") {
-      await this.rowCreditCard.click();
+      return;
     }
-    await expect(this.inputCardName).toBeVisible({ timeout: 10000 });
+
+    if (provider === "Adyen") {
+      const isChecked = await this.radioAdyenProvider
+        .isChecked()
+        .catch(() => false);
+      if (!isChecked) {
+        await this.page.locator('label[for="Adyen"]').first().click();
+      }
+      await expect(
+        this.cardNumberFrame().locator(
+          'input[data-fieldtype="encryptedCardNumber"]',
+        ),
+      ).toBeVisible({ timeout: 30000 });
+      this.usingAdyenIframe = true;
+      console.log("✅ Adyen seleccionado");
+      return;
+    }
+
+    if (
+      provider === "eBanking" ||
+      provider === "atome" ||
+      provider === "boost"
+    ) {
+      const isAdyenChecked = await this.radioAdyenProvider
+        .isChecked()
+        .catch(() => false);
+      if (!isAdyenChecked) {
+        await this.page.locator('label[for="Adyen"]').first().click();
+      }
+
+      const methodClass = {
+        eBanking: "molpay_ebanking_fpx_MY",
+        atome: "atome",
+        boost: "molpay_boost",
+      }[provider];
+      const methodContainer = this.page.locator(
+        `.adyen-checkout__payment-method--${methodClass}`,
+      );
+      await methodContainer.locator("button").first().click();
+
+      // ✅ E-Banking (FPX) NO redirige ni abre popup en este paso
+      if (provider === "eBanking") {
+        await methodContainer.locator('input[role="combobox"]').click();
+        await methodContainer.locator('li[role="option"]').first().click();
+        console.log("✅ Banco seleccionado (Maybank2u)");
+      }
+
+      // ⚠️ Atome (Adyen "open invoice")
+      if (provider === "atome" && openInvoiceDetails) {
+        const firstNameInput = methodContainer.locator(
+          'input[name="firstName"]',
+        );
+        const hasOpenInvoiceForm = await firstNameInput
+          .waitFor({ state: "visible", timeout: 5000 })
+          .then(() => true)
+          .catch(() => false);
+
+        if (hasOpenInvoiceForm) {
+          await firstNameInput.fill(openInvoiceDetails.firstName);
+          await methodContainer
+            .locator('input[name="lastName"]')
+            .fill(openInvoiceDetails.lastName);
+          await methodContainer
+            .locator('input[name="telephoneNumber"]')
+            .fill(openInvoiceDetails.phone);
+          await methodContainer
+            .locator('input[name="street"]')
+            .fill(openInvoiceDetails.street);
+          await methodContainer
+            .locator('input[name="postalCode"]')
+            .fill(openInvoiceDetails.postalCode);
+          console.log(
+            "✅ Formulario de Atome (Personal details/Billing) llenado",
+          );
+        } else {
+          console.log(
+            "ℹ️ Atome sin formulario embebido en este checkout — se sigue directo",
+          );
+        }
+      }
+
+      this.usingAdyenIframe = false;
+      this.usingAdyenRedirectMethod = provider;
+      console.log(`✅ Proveedor "${provider}" seleccionado (dentro de Adyen)`);
+      return;
+    }
+
+    // Proveedor explícito no-Adyen (Braintree/WorldPay/CyberSource/PayPal/
+    // GPay).
+    this.usingAdyenIframe = false;
+    this.usingPayPal = provider === "BraintreeWithPayPal";
+    this.usingGPay = provider === "BraintreeWithGPay";
+
+    const radio = this.page.locator(`input[type="radio"][value="${provider}"]`);
+    const isChecked = await radio.isChecked().catch(() => false);
+    if (!isChecked) {
+      // El input real está oculto (class="peer hidden"); el clickeable es
+      // su <label for="<provider>"> (hay 2: el círculo y el de texto —
+      // .first() alcanza).
+      await this.page.locator(`label[for="${provider}"]`).first().click();
+    }
+
+    if (this.usingPayPal || this.usingGPay) {
+      // PayPal/GPay no tienen formulario de tarjeta — la auth va en el
+      // popup/redirect al confirmar la orden.
+      console.log(
+        `✅ Proveedor "${provider}" seleccionado (sin formulario de tarjeta)`,
+      );
+      return;
+    }
+
+    await expect(this.inputCardName).toBeVisible({ timeout: 15000 });
+    console.log(`✅ Proveedor "${provider}" seleccionado`);
   }
 
-  // ✅ Llenar tarjeta
-  async fillCardDetails(card: {
+  // ✅ Rama Adyen
+  override async fillCardDetails(card: {
     name: string;
     number: string;
     expMonth: string;
     expYear: string;
     cvv: string;
   }) {
-    await this.inputCardName.clear();
-    await this.inputCardName.pressSequentially(card.name, { delay: 100 });
-    await this.inputCardNumber.clear();
-    await this.inputCardNumber.pressSequentially(card.number, { delay: 100 });
-    await this.inputExpMonth.clear();
-    await this.inputExpMonth.pressSequentially(card.expMonth, { delay: 100 });
-    await this.inputExpYear.clear();
-    await this.inputExpYear.pressSequentially(card.expYear, { delay: 100 });
-    await this.inputCVV.clear();
-    await this.inputCVV.pressSequentially(card.cvv, { delay: 100 });
+    if (this.usingPayPal || this.usingGPay || this.usingAdyenRedirectMethod) {
+      // Sin formulario de tarjeta — no hay nada que llenar acá.
+      return;
+    }
+    if (!this.usingAdyenIframe) {
+      await super.fillCardDetails(card);
+      return;
+    }
+
+    const expiry = `${card.expMonth}/${card.expYear.slice(-2)}`;
+
+    const numberInput = this.cardNumberFrame().locator(
+      'input[data-fieldtype="encryptedCardNumber"]',
+    );
+    const expiryInput = this.cardExpiryFrame().locator(
+      'input[data-fieldtype="encryptedExpiryDate"]',
+    );
+    const cvvInput = this.cardCvvFrame().locator(
+      'input[data-fieldtype="encryptedSecurityCode"]',
+    );
+
+    await numberInput.pressSequentially(card.number, { delay: 100 });
+
+    await this.page.waitForTimeout(500);
+    await expiryInput.click();
+    await expiryInput.pressSequentially(expiry, { delay: 100 });
+    await expect(expiryInput).toHaveValue(expiry, { timeout: 5000 });
+
+    await this.page.waitForTimeout(500);
+    await cvvInput.click();
+    await cvvInput.pressSequentially(card.cvv, { delay: 100 });
+    await expect(cvvInput).toHaveValue(card.cvv, { timeout: 5000 });
+
+    await this.inputHolderName.click();
+    await this.inputHolderName.pressSequentially(card.name, { delay: 100 });
+
+    console.log("✅ Datos de tarjeta llenados (Adyen)");
+  }
+
+  // ✅ Challenge 3DS (tarjetas con `needs3ds`).
+  async handle3dsChallenge(): Promise<boolean> {
+    const inputSel = '#password-input, input[name="answer"]';
+    const deadline = Date.now() + 90000;
+    let target: Frame | undefined;
+    while (Date.now() < deadline && !target) {
+      if (/\/complete/.test(this.page.url())) return false;
+      for (const f of this.page.frames()) {
+        const visible = await f
+          .locator(inputSel)
+          .first()
+          .isVisible()
+          .catch(() => false);
+        if (visible) {
+          target = f;
+          break;
+        }
+      }
+      if (!target) await this.page.waitForTimeout(1000);
+    }
+    if (!target) {
+      if (/\/complete/.test(this.page.url())) return false;
+      throw new Error(
+        "No se encontró el input del challenge 3DS en ningún iframe (y no navegó a /complete)",
+      );
+    }
+    console.log(`🔐 Challenge 3DS (iframe): ${target.url()}`);
+
+    await target.locator(inputSel).first().fill("password");
+    await target
+      .locator('#buttonSubmit, button[type="submit"]')
+      .first()
+      .click();
+    console.log('✅ 3DS challenge: "password" + Continue');
+    return true;
+  }
+
+  private paymentModal(): Locator {
+    return this.page
+      .locator('[role="dialog"]')
+      .filter({ hasText: "PAYMENT" })
+      .first();
+  }
+
+  private paypalSectionContainer(
+    sectionLabel: "Cart" | "Subscription Box",
+  ): Locator {
+    return this.paymentModal()
+      .getByText(sectionLabel, { exact: true })
+      .locator('xpath=ancestor::*[.//*[contains(@class,"paypal-buttons")]][1]');
+  }
+
+  // ✅ Flujo PayPal (BraintreeWithPayPal).
+  async payWithPayPal() {
+    await this.approvePayPalPopup(this.paypalSectionContainer("Cart"), "cart");
+
+    const hasSubscriptionBox = await this.paymentModal()
+      .getByText("Subscription Box", { exact: true })
+      .waitFor({ state: "visible", timeout: 8000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (hasSubscriptionBox) {
+      await this.approvePayPalPopup(
+        this.paypalSectionContainer("Subscription Box"),
+        "subscription",
+      );
+    } else {
+      console.log(
+        "ℹ️ PayPal: sin sección de suscripción en este flujo (Retail Customer)",
+      );
+    }
+  }
+
+  // ✅ Login sandbox
+  private async locatePayPalButton(container: Locator) {
+    await container.waitFor({ state: "visible", timeout: 30000 });
+
+    const buttonFrame = container.frameLocator(
+      'iframe[title*="PayPal"]:not(.invisible)',
+    );
+    const payPalBtn = buttonFrame
+      .locator(
+        '.paypal-button[data-funding-source="paypal"], .paypal-button, [role="button"]',
+      )
+      .first();
+    await payPalBtn.waitFor({ state: "visible", timeout: 15000 });
+    return payPalBtn;
+  }
+
+  // ⚠️ Modo live
+  private async verifyPayPalPopupOpensOnly(container: Locator, slug: string) {
+    const payPalBtn = await this.locatePayPalButton(container);
+
+    const [popup] = await Promise.all([
+      this.page.waitForEvent("popup", { timeout: 30000 }).catch(() => null),
+      payPalBtn.click(),
+    ]);
+
+    if (!popup) {
+      await this.page
+        .screenshot({
+          path: `test-results/_debug-paypal-${slug}-live-nopopup.png`,
+        })
+        .catch(() => {});
+      throw new Error(
+        `PayPal (${slug}) [modo live]: no se abrió ninguna ventana de pago`,
+      );
+    }
+    console.log(
+      `✅ Modo live: PayPal (${slug}) - ventana de pago abierta correctamente (${popup.url()})`,
+    );
+    await popup.close().catch(() => {});
+  }
+
+  async verifyPayPalOpensInLiveMode() {
+    await this.verifyPayPalPopupOpensOnly(
+      this.paypalSectionContainer("Cart"),
+      "cart",
+    );
+
+    const hasSubscriptionBox = await this.paymentModal()
+      .getByText("Subscription Box", { exact: true })
+      .waitFor({ state: "visible", timeout: 8000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (hasSubscriptionBox) {
+      await this.verifyPayPalPopupOpensOnly(
+        this.paypalSectionContainer("Subscription Box"),
+        "subscription",
+      );
+    } else {
+      console.log("ℹ️ PayPal (live): sin sección de suscripción en este flujo");
+    }
+  }
+
+  private async approvePayPalPopup(container: Locator, slug: string) {
+    let popup: Page | null = null;
+    for (let attempt = 1; attempt <= 2 && !popup; attempt++) {
+      const payPalBtn = await this.locatePayPalButton(container);
+      [popup] = await Promise.all([
+        this.page.waitForEvent("popup", { timeout: 15000 }).catch(() => null),
+        payPalBtn.click(),
+      ]);
+      if (!popup && attempt === 1) {
+        console.log(
+          `⚠️ PayPal (${slug}): sin popup en el primer clic (posible swap de iframe), reintentando...`,
+        );
+      }
+    }
+
+    if (!popup) {
+      const alreadyApproved = await container
+        .getByText(/successful payment/i)
+        .waitFor({ state: "visible", timeout: 15000 })
+        .then(() => true)
+        .catch(() => false);
+      if (alreadyApproved) {
+        console.log(
+          `✅ PayPal (${slug}): aprobado automáticamente (sin popup)`,
+        );
+        return;
+      }
+      throw new Error(
+        `PayPal (${slug}): no se abrió popup y no se detectó aprobación automática ("Successful payment")`,
+      );
+    }
+    console.log(`🅿️ PayPal (${slug}) popup: ${popup.url()}`);
+
+    const emailInput = popup.locator("#email");
+    const needsLogin = await emailInput
+      .waitFor({ state: "visible", timeout: 8000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (needsLogin) {
+      await popup
+        .screenshot({ path: `test-results/_debug-paypal-${slug}-email.png` })
+        .catch(() => {});
+      await emailInput.fill(users.paypalSandbox.email);
+
+      await popup
+        .locator(
+          'button[data-atomic-wait-task="login_enter_email"], button:has-text("Next")',
+        )
+        .first()
+        .click();
+
+      const passwordInput = popup.locator(
+        '#password:not([aria-hidden="true"])',
+      );
+      await passwordInput.waitFor({ state: "visible", timeout: 15000 });
+      await passwordInput.fill(users.paypalSandbox.password);
+      await popup
+        .screenshot({
+          path: `test-results/_debug-paypal-${slug}-password.png`,
+        })
+        .catch(() => {});
+
+      await popup
+        .locator(
+          'button[data-atomic-wait-task="login_enter_password"], button:has-text("Log In"), button:has-text("Login")',
+        )
+        .first()
+        .click();
+    } else {
+      console.log(
+        `🅿️ PayPal (${slug}): sesión ya logueada, sin pedir credenciales`,
+      );
+    }
+
+    // Pantalla de revisión de la orden — confirmar/aprobar el pago.
+    const approveBtn = popup.locator(
+      "#payment-submit-btn, button:has-text('Continue'), button:has-text('Pay Now')",
+    );
+    await approveBtn.first().waitFor({ state: "visible", timeout: 30000 });
+    await popup
+      .screenshot({ path: `test-results/_debug-paypal-${slug}-review.png` })
+      .catch(() => {});
+    await approveBtn.first().click();
+
+    // Tras aprobar, el popup se cierra solo.
+    await popup.waitForEvent("close", { timeout: 30000 }).catch(() => {});
+    console.log(`✅ PayPal (${slug}): aprobado`);
+  }
+
+  // ⚠️ GPay
+  private async approveGPayPopup(
+    containerSelector: string,
+    slug: string,
+    liveMode = false,
+  ) {
+    const gpayBtn = this.page
+      .locator(
+        `${containerSelector} button#gpay-button-online-api-id, ${containerSelector} button[aria-label="Buy with GPay"]`,
+      )
+      .first();
+    await gpayBtn.waitFor({ state: "visible", timeout: 15000 });
+
+    const [popup] = await Promise.all([
+      this.page.waitForEvent("popup", { timeout: 30000 }).catch(() => null),
+      gpayBtn.click(),
+    ]);
+
+    if (!popup) {
+      await this.page
+        .screenshot({ path: `test-results/_debug-gpay-${slug}-nopopup.png` })
+        .catch(() => {});
+      throw new Error(
+        `GPay (${slug}): no se abrió ningún popup ni con más tiempo de espera — probablemente la Payment Request API nativa del navegador, fuera del alcance de Playwright. Ver test-results/_debug-gpay-${slug}-nopopup.png`,
+      );
+    }
+
+    console.log(`🅶 GPay (${slug}) popup: ${popup.url()}`);
+
+    if (liveMode) {
+      console.log(
+        `✅ Modo live: GPay (${slug}) - ventana de pago abierta correctamente, sin continuar con login/aprobación`,
+      );
+      await popup.close().catch(() => {});
+      return;
+    }
+
+    await popup
+      .waitForLoadState("domcontentloaded", { timeout: 20000 })
+      .catch(() => {});
+
+    const emailInput = popup.locator(
+      'input[type="email"]#identifierId, input[type="email"]',
+    );
+    const needsLogin = await emailInput
+      .waitFor({ state: "visible", timeout: 10000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (needsLogin) {
+      await popup
+        .screenshot({ path: `test-results/_debug-gpay-${slug}-email.png` })
+        .catch(() => {});
+      await emailInput.fill(users.gpaySandbox.email);
+      await popup
+        .locator(
+          '#identifierNext button, #identifierNext, button:has-text("Next")',
+        )
+        .first()
+        .click();
+
+      const passwordInput = popup.locator(
+        'input[type="password"][name="Passwd"], input[type="password"]',
+      );
+      await passwordInput.waitFor({ state: "visible", timeout: 15000 });
+      await passwordInput.fill(users.gpaySandbox.password);
+      await popup
+        .screenshot({ path: `test-results/_debug-gpay-${slug}-password.png` })
+        .catch(() => {});
+      await popup
+        .locator('#passwordNext button, #passwordNext, button:has-text("Next")')
+        .first()
+        .click();
+    } else {
+      console.log(
+        `🅶 GPay (${slug}): sesión ya logueada, sin pedir credenciales`,
+      );
+    }
+
+    const approveBtn = popup.locator(
+      'button:has-text("Continue"), button:has-text("Pay"), button:has-text("Confirm")',
+    );
+    await approveBtn.first().waitFor({ state: "visible", timeout: 30000 });
+    await popup
+      .screenshot({ path: `test-results/_debug-gpay-${slug}-review.png` })
+      .catch(() => {});
+    await approveBtn.first().click();
+
+    await popup.waitForEvent("close", { timeout: 30000 }).catch(() => {});
+    console.log(`✅ GPay (${slug}): aprobado`);
+  }
+
+  // ✅ Verificar página cargada — versión propia: la página de enroll no
+  // confirma via rowCreditCard visible (esa parte extra la agrega
+  // CheckoutPage para el checkout normal, no probada acá).
+  override async verifyPageLoaded() {
+    // ⚠️ Timeout default (5s) confirmado insuficiente en Taiwan — la
+    // transición Info→Checkout tarda más ahí (probablemente por
+    // validaciones extra de dirección/banco). Se sube el margen; no afecta
+    // a mercados donde ya era rápida.
+    await expect(this.page).toHaveURL(/\/checkout/, { timeout: 30000 });
+    await this.page.waitForLoadState("networkidle", { timeout: 60000 });
+    await expect(
+      this.page.locator('[data-test="checkout-payment-method"]'),
+    ).toBeVisible({
+      timeout: 30000,
+    });
+    console.log(`✅ Checkout de enrolamiento cargado`);
   }
 
   // ✅ Llenar fecha de nacimiento
   async fillBirthDate(month: string, day: string, year: string) {
-    // Month y Day son selects (Vuetify)
-    await this.selectMonth.click();
-    await this.page.locator(".v-list-item", { hasText: month }).click();
-
-    // ✅ Esperar que cierre el menú de Month
-    await this.page.waitForTimeout(500);
-
-    await this.page.waitForTimeout(500);
-
-    // ✅ Seleccionar Day con evaluate para evitar problemas de visibilidad
-    await this.selectDay.click({ force: true });
-    await this.page.waitForTimeout(500);
-
-    // ✅ Usar evaluate para hacer clic directamente en el elemento correcto
-    await this.page.evaluate((dayValue) => {
-      // Buscar todos los menús visibles
-      const menus = document.querySelectorAll(".v-menu__content");
-      for (const menu of menus) {
-        const style = window.getComputedStyle(menu);
-        if (style.display === "none") continue;
-
-        // Buscar el item con el texto exacto del día
-        const items = menu.querySelectorAll(".v-list-item__title");
-        for (const item of items) {
-          if (item.textContent?.trim() === dayValue) {
-            (item as HTMLElement).click();
-            return;
-          }
-        }
-      }
-    }, day);
-
-    await this.page.waitForTimeout(300);
-
-    // ✅ Verificar que se seleccionó el día correcto
-    const selectedDay = await this.selectDay.inputValue();
-    console.log(`📅 Día seleccionado: ${selectedDay}`);
+    await this.selectAutocompleteOption(this.selectMonth, month);
+    await this.selectAutocompleteOption(this.selectDay, day);
 
     await this.inputYear.clear();
     await this.inputYear.pressSequentially(year, { delay: 100 });
 
     console.log(`✅ Fecha de nacimiento: ${month} ${day}, ${year}`);
+  }
+
+  private async selectAutocompleteOption(input: Locator, optionText: string) {
+    await input.click();
+    const option = input
+      .locator("xpath=..")
+      .getByText(optionText, { exact: true });
+    await expect(option).toBeVisible({ timeout: 5000 });
+    await option.click();
   }
 
   //Llenar SSN
@@ -264,7 +705,9 @@ export class EnrollCheckoutPage {
 
   // ✅ Seleccionar referido por nombre
   async selectReferralByName(firstName: string, lastName: string) {
-    await this.page.locator("label", { hasText: "Search by Name" }).click();
+    await this.page
+      .locator("label", { hasText: this.labels.searchByName })
+      .click();
     console.log("✅ 'Search by Name' seleccionado");
 
     await expect(this.inputReferralFirstName).toBeVisible({ timeout: 5000 });
@@ -278,7 +721,7 @@ export class EnrollCheckoutPage {
   // ✅ Seleccionar referido por Sponsor ID
   async selectReferralById(sponsorId: string) {
     await this.page
-      .locator("label", { hasText: "Search by Sponsor ID" })
+      .locator("label", { hasText: this.labels.searchBySponsorId })
       .click();
     console.log("✅ 'Search by Sponsor ID' seleccionado");
 
@@ -291,7 +734,9 @@ export class EnrollCheckoutPage {
 
   // ✅ No hay referido
   async selectNoReferral() {
-    await this.page.locator("label", { hasText: "No one referred me" }).click();
+    await this.page
+      .locator("label", { hasText: this.labels.noOneReferredMe })
+      .click();
     console.log("✅ 'No one referred me' seleccionado");
   }
 
@@ -338,152 +783,172 @@ export class EnrollCheckoutPage {
     console.log(`✅ Username: ${username}`);
   }
 
-  // ✅ Marcar personal consumption
-  async checkPersonalConsumption() {
-    // ✅ Leer estado por el primer checkbox (personal consumption)
-    const checkbox = this.page.locator('input[role="checkbox"]').first();
-    const isChecked = await checkbox.evaluate((el) =>
-      el.getAttribute("aria-checked"),
-    );
-
-    if (isChecked !== "true") {
-      console.log("⏳ Marcando personal consumption...");
-
-      await this.labelPersonalConsumption.scrollIntoViewIfNeeded();
-      await this.page.waitForTimeout(500);
-
-      // ✅ Clic con force + esperar API
-      await Promise.all([
-        this.page
-          .waitForResponse(
-            (response) => response.url().includes("ProductsWillNotBeResold"),
-            { timeout: 30000 },
-          )
-          .catch(() => {
-            console.log("⏭️ Sin respuesta API, continuando...");
-          }),
-        this.labelPersonalConsumption.click({ force: true }), // ✅ force para ignorar ripple
-      ]);
-
-      // ✅ Esperar loading
-      const loadingSpinner = this.page.locator(".loading-view");
-      await expect(loadingSpinner)
-        .toBeVisible({ timeout: 5000 })
-        .catch(() => {
-          console.log("⏭️ Loading muy rápido, continuando...");
-        });
-
-      await expect(loadingSpinner).not.toBeVisible({ timeout: 15000 });
-      await this.page.waitForLoadState("networkidle", { timeout: 15000 });
-
-      console.log("✅ Recálculo completado, montos actualizados");
-    }
-  }
-
   async acceptAgreements() {
-    // ✅ Leer estado por el segundo checkbox (agreements)
-    const checkbox = this.page.locator('input[role="checkbox"]').nth(1);
-    const isChecked = await checkbox.evaluate((el) =>
-      el.getAttribute("aria-checked"),
-    );
+    // ✅ Checkbox nativo: leer estado con isChecked(), no aria-checked
+    const isChecked = await this.checkboxAgreements.isChecked();
 
-    if (isChecked !== "true") {
+    if (!isChecked) {
       await this.labelAgreements.scrollIntoViewIfNeeded();
-      await this.labelAgreements.click({ force: true }); // ✅ force para ignorar ripple
+      await this.labelAgreements.click();
     }
     console.log("✅ Acuerdos aceptados");
   }
 
-  // ✅ Billing Address TODAY'S ORDER
-  // Por defecto ya viene "Use my shipping address" marcado
-
-  async verifyTodayOrderBillingAddress() {
-    const isChecked = await this.page.evaluate(() => {
-      const inputs = document.querySelectorAll('input[value="radio-1"]');
-      // El segundo radio-1 es el de suscripción
-      const last = inputs[inputs.length - 1];
-      return last?.getAttribute("aria-checked");
-    });
-
-    if (isChecked !== "true") {
-      await this.labelUseShippingAddress.click();
-    }
-    console.log("✅ Billing address Today Order = mismo del shipping address");
-  }
-
   // ✅ Verificar subscription mismo método
-  async verifySubscriptionSamePayment() {
-    const isChecked = await this.page.evaluate(() => {
-      const input = document.querySelector(
-        '[data-test="box-billing-method-0"]',
-      );
-      return input?.getAttribute("aria-checked");
-    });
-    if (isChecked !== "true") {
+  override async verifySubscriptionSamePayment() {
+    const isChecked = await this.radioBoxSameAsCart.isChecked();
+    if (!isChecked) {
       await this.labelBoxSameAsCart.click();
     }
-  }
-
-  // ✅ Capturar totales
-  async captureOrderTotal(): Promise<string> {
-    try {
-      const total = await this.page.evaluate(() => {
-        const elements = document.querySelectorAll(
-          '[data-cy="summary-order-totalAmount"]',
-        );
-        for (const el of Array.from(elements).reverse()) {
-          const style = window.getComputedStyle(el);
-          if (style.display !== "none" && style.visibility !== "hidden") {
-            return el.textContent?.trim() ?? "";
-          }
-        }
-        return "";
-      });
-      console.log(`💰 Order Total: ${total}`);
-      return total;
-    } catch {
-      return "";
-    }
-  }
-
-  async captureSubscriptionTotal(): Promise<string> {
-    try {
-      const total = await this.page.evaluate(() => {
-        const elements = document.querySelectorAll(
-          '[data-cy="summary-subscription-totalAmount"]',
-        );
-        for (const el of Array.from(elements).reverse()) {
-          const style = window.getComputedStyle(el);
-          if (style.display !== "none" && style.visibility !== "hidden") {
-            return el.textContent?.trim() ?? "";
-          }
-        }
-        return "";
-      });
-      console.log(`💰 Subscription Total: ${total}`);
-      return total;
-    } catch {
-      return "";
-    }
+    console.log("✅ Subscription mismo método de pago que Cart");
   }
 
   // ✅ Confirmar orden
-  async placeOrder() {
-    // 1. Scroll hasta el botón
+  override async placeOrder(needs3ds = false, liveMode = false) {
     await this.btnCheckout.scrollIntoViewIfNeeded();
-
-    // 2. Esperar que esté visible y habilitado
     await expect(this.btnCheckout).toBeVisible({ timeout: 10000 });
     await expect(this.btnCheckout).toBeEnabled({ timeout: 10000 });
 
-    // 3. Esperar networkidle antes de hacer clic
-    await this.page.waitForLoadState("networkidle", { timeout: 15000 });
+    await this.page
+      .waitForLoadState("networkidle", { timeout: 15000 })
+      .catch(() => {});
 
-    // 4. Clic y esperar navegación a /complete
-    await Promise.all([
-      this.page.waitForURL(/\/complete/, { timeout: 120000 }),
-      this.btnCheckout.click(),
-    ]);
+    if (this.usingPayPal) {
+      await this.btnCheckout.click();
+      if (liveMode) {
+        await this.verifyPayPalOpensInLiveMode();
+        console.log(
+          "✅ Modo live: PayPal solo verificado hasta apertura de ventana, sin completar el pago real (sin cuentas reales en live)",
+        );
+        return;
+      }
+      await this.payWithPayPal();
+      await this.page.waitForURL(/\/complete/, { timeout: 120000 });
+      console.log("✅ Orden confirmada, navegando a /complete");
+      return;
+    }
+
+    // ⚠️ GPay:
+    if (this.usingGPay) {
+      await this.btnCheckout.click();
+      await this.approveGPayPopup("#google-pay-button-cart", "cart", liveMode);
+
+      // Igual que PayPal: puede haber una segunda sección "Subscription
+      // Box" con su propio botón, que no siempre existe (Retail Customer).
+      const hasSubscriptionBox = await this.page
+        .locator("#google-pay-button-box")
+        .waitFor({ state: "visible", timeout: 8000 })
+        .then(() => true)
+        .catch(() => false);
+      if (hasSubscriptionBox) {
+        await this.approveGPayPopup(
+          "#google-pay-button-box",
+          "subscription",
+          liveMode,
+        );
+      } else {
+        console.log("ℹ️ GPay: sin sección de suscripción en este flujo");
+      }
+
+      if (liveMode) {
+        console.log(
+          "✅ Modo live: GPay solo verificado hasta apertura de ventana, sin completar el pago real (sin cuentas reales en live)",
+        );
+        return;
+      }
+
+      await this.page.waitForURL(/\/complete/, { timeout: 120000 });
+      console.log("✅ Orden confirmada, navegando a /complete");
+      return;
+    }
+
+    if (this.usingAdyenRedirectMethod) {
+      const slug = this.usingAdyenRedirectMethod;
+      const [popup] = await Promise.all([
+        this.page.waitForEvent("popup", { timeout: 10000 }).catch(() => null),
+        this.page
+          .waitForURL((url) => !url.pathname.includes("/checkout"), {
+            timeout: 30000,
+          })
+          .catch(() => {}),
+        this.btnCheckout.click(),
+      ]);
+      const targetPage = popup ?? this.page;
+
+      if ((slug === "eBanking" || slug === "boost") && liveMode) {
+        console.log(
+          `✅ Modo live: ${slug} - redirect al gateway confirmado (${targetPage.url()}), sin completar el pago real`,
+        );
+        return;
+      }
+
+      if (slug === "eBanking" || slug === "boost") {
+        await targetPage
+          .locator('button:has-text("authorised")')
+          .first()
+          .click();
+        await this.page.waitForURL(/\/complete/, { timeout: 60000 });
+        console.log(
+          `✅ ${slug}: pago autorizado en el simulador, orden confirmada`,
+        );
+        return;
+      }
+
+      // ⚠️ Atome
+      if (slug === "atome" && !popup) {
+        await expect(this.page).toHaveURL(/sandbox-gateway\.apaylater\.net/, {
+          timeout: 10000,
+        });
+        console.log(
+          `✅ ${slug}: redirect al gateway confirmado (${this.page.url()}) — sin login, datos de sandbox pendientes`,
+        );
+        return;
+      }
+
+      if (popup) {
+        await popup
+          .waitForLoadState("domcontentloaded", { timeout: 20000 })
+          .catch(() => {});
+        console.log(`🔀 ${slug}: se abrió un popup — ${popup.url()}`);
+        await popup
+          .screenshot({ path: `test-results/_debug-${slug}-popup.png` })
+          .catch(() => {});
+      } else {
+        console.log(
+          `🔀 ${slug}: navegación en la misma pestaña — ${this.page.url()}`,
+        );
+        await this.page
+          .screenshot({ path: `test-results/_debug-${slug}-redirect.png` })
+          .catch(() => {});
+      }
+
+      throw new Error(
+        `${slug}: falta implementar el flujo posterior al redirect/popup — ver test-results/_debug-${slug}-*.png`,
+      );
+    }
+
+    // ⚠️ Modo live
+    if (liveMode) {
+      await this.btnCheckout.click();
+      console.log(
+        "✅ Modo live: Credit Card/Adyen solo verificado hasta el clic en Checkout, sin completar el pago real (sin tarjetas reales en live)",
+      );
+      return;
+    }
+
+    if (needs3ds) {
+      await this.btnCheckout.click();
+      const handled = await this.handle3dsChallenge();
+      if (!handled) {
+        console.log("ℹ️ Pago 3DS frictionless (sin challenge visible)");
+      }
+      await this.page.waitForURL(/\/complete/, { timeout: 120000 });
+    } else {
+      await Promise.all([
+        this.page.waitForURL(/\/complete/, { timeout: 120000 }),
+        this.btnCheckout.click(),
+      ]);
+    }
 
     console.log("✅ Orden confirmada, navegando a /complete");
   }
@@ -505,11 +970,17 @@ export class EnrollCheckoutPage {
       username: string;
       password: string;
     },
+    opts: {
+      needs3ds?: boolean;
+      provider?: PaymentProvider;
+      openInvoiceDetails?: OpenInvoiceDetails;
+      liveMode?: boolean;
+    } = {},
   ): Promise<{ orderTotal: string; subscriptionTotal: string }> {
     await this.verifyPageLoaded();
 
     // 1. Pago
-    await this.selectCreditCardPayment();
+    await this.selectCreditCardPayment(opts.provider, opts.openInvoiceDetails);
     await this.fillCardDetails(card);
 
     // 2. Billing address (ya viene marcado)
@@ -536,7 +1007,7 @@ export class EnrollCheckoutPage {
     const subscriptionTotal = await this.captureSubscriptionTotal();
 
     // 7. Confirmar
-    await this.placeOrder();
+    await this.placeOrder(opts.needs3ds ?? false, opts.liveMode ?? false);
 
     return { orderTotal, subscriptionTotal };
   }
@@ -557,9 +1028,15 @@ export class EnrollCheckoutPage {
       | { type: "name"; firstName: string; lastName: string }
       | { type: "id"; sponsorId: string }
       | { type: "none" },
+    opts: {
+      needs3ds?: boolean;
+      provider?: PaymentProvider;
+      openInvoiceDetails?: OpenInvoiceDetails;
+      liveMode?: boolean;
+    } = {},
   ): Promise<{ orderTotal: string; subscriptionTotal: string }> {
     await this.verifyPageLoaded();
-    await this.selectCreditCardPayment();
+    await this.selectCreditCardPayment(opts.provider, opts.openInvoiceDetails);
     await this.fillCardDetails(card);
     await this.verifyTodayOrderBillingAddress();
     await this.verifySubscriptionSamePayment();
@@ -581,7 +1058,58 @@ export class EnrollCheckoutPage {
 
     const orderTotal = await this.captureOrderTotal();
     const subscriptionTotal = await this.captureSubscriptionTotal();
-    await this.placeOrder();
+    await this.placeOrder(opts.needs3ds ?? false, opts.liveMode ?? false);
+
+    return { orderTotal, subscriptionTotal };
+  }
+
+  async completeRCCheckout(
+    card: {
+      name: string;
+      number: string;
+      expMonth: string;
+      expYear: string;
+      cvv: string;
+    },
+    enrollData: {
+      username: string;
+      password: string;
+    },
+    referral:
+      | { type: "name"; firstName: string; lastName: string }
+      | { type: "id"; sponsorId: string }
+      | { type: "none" },
+    opts: {
+      needs3ds?: boolean;
+      provider?: PaymentProvider;
+      openInvoiceDetails?: OpenInvoiceDetails;
+      liveMode?: boolean;
+    } = {},
+  ): Promise<{ orderTotal: string; subscriptionTotal: string }> {
+    await this.verifyPageLoaded();
+    await this.selectCreditCardPayment(opts.provider, opts.openInvoiceDetails);
+    await this.fillCardDetails(card);
+    await this.verifyTodayOrderBillingAddress();
+    //await this.verifySubscriptionSamePayment();
+
+    // ✅ Sección de referidos
+    if (referral.type === "name") {
+      await this.selectReferralByName(referral.firstName, referral.lastName);
+    } else if (referral.type === "id") {
+      await this.selectReferralById(referral.sponsorId);
+    } else {
+      await this.selectNoReferral();
+    }
+
+    await this.fillCredentials(enrollData.username, enrollData.password);
+
+    await this.acceptAgreements();
+    await this.page.waitForLoadState("networkidle", { timeout: 15000 });
+    await this.page.waitForTimeout(1000);
+
+    const orderTotal = await this.captureOrderTotal();
+    const subscriptionTotal = await this.captureSubscriptionTotal();
+    await this.placeOrder(opts.needs3ds ?? false, opts.liveMode ?? false);
 
     return { orderTotal, subscriptionTotal };
   }

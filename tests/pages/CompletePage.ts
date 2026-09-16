@@ -1,7 +1,9 @@
 import { Page, Locator, expect } from "@playwright/test";
+import { MarketLabels, defaultLabels } from "../fixtures/marketLabels";
 
 export class CompletePage {
   readonly page: Page;
+  readonly labels: MarketLabels;
 
   // 🎯 Confirmación
   readonly confirmationMessage: Locator;
@@ -18,20 +20,30 @@ export class CompletePage {
   readonly subscriptionTotalAmount: Locator;
   readonly subscriptionTotalTax: Locator;
 
-  constructor(page: Page) {
+  constructor(page: Page, labels: MarketLabels = defaultLabels) {
     this.page = page;
+    this.labels = labels;
 
     // ✅ Confirmación
-    this.confirmationMessage = page.locator(".secondary");
-    this.orderNumber = page
-      .locator('[data-cy="enrollment-details-orderNumber"]')
+
+    this.confirmationMessage = page
+      .locator("div", {
+        hasText: labels.orderReceived,
+      })
       .last();
 
-    this.orderDate = page
-      .locator('[data-cy="enrollment-details-orderDate"]')
-      .last();
+    const orderSummaryBox = page.locator("div.bg-gray-200", {
+      hasText: labels.orderNumberLabel,
+    });
+    this.orderNumber = orderSummaryBox
+      .locator(".col-span-6.text-right > div")
+      .nth(0);
+    this.orderDate = orderSummaryBox
+      .locator(".col-span-6.text-right > div")
+      .nth(1);
+
     this.downloadReceiptLink = page.locator("a", {
-      hasText: "Download receipt",
+      hasText: labels.downloadReceipt,
     });
 
     // ✅ Totales orden

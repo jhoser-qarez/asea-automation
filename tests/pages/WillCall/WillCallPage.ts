@@ -7,9 +7,18 @@ export class WillCallPage {
 
   // Modal "Select your delivery option"
   readonly modal: Locator;
+  readonly radioGroup: Locator;
+
+  // Inputs nativos (ocultos vía CSS) - usados para verificar el estado "checked"
   readonly radioShipToHome: Locator;
   readonly radioUtahWillCall: Locator;
   readonly radioPickupWarehouse: Locator;
+
+  // Labels visibles con el texto de la opción - usados para hacer clic
+  readonly labelShipToHome: Locator;
+  readonly labelUtahWillCall: Locator;
+  readonly labelPickupWarehouse: Locator;
+
   readonly btnContinueWithDelivery: Locator;
   readonly btnClose: Locator;
 
@@ -20,21 +29,36 @@ export class WillCallPage {
     this.page = page;
 
     // Ícono de delivery en el header
-    this.btnDeliveryIcon = page
-      .locator("button.v-btn--round i.mdi-truck")
-      .locator("..");
+    this.btnDeliveryIcon = page.locator('[data-test="shipping-icon"]');
 
     // Modal activo
-    this.modal = page.locator(".v-dialog--active", {
-      hasText: "Select your delivery option",
+    this.modal = page.getByText("Select your delivery option");
+
+    // Grupo de radios de opciones de entrega
+    this.radioGroup = page.locator('[role="radiogroup"]');
+
+    // Los ids/name de los inputs dependen del orden en la lista (ej. "0_0", "6_1"),
+    // por eso se ubican por su nombre accesible (texto del label asociado) en vez del id.
+    this.radioShipToHome = this.radioGroup.getByRole("radio", {
+      name: "Ship to home",
+    });
+    this.radioUtahWillCall = this.radioGroup.getByRole("radio", {
+      name: "Utah Will Call Center",
+    });
+    this.radioPickupWarehouse = this.radioGroup.getByRole("radio", {
+      name: "Pickup Brand Partner Owned Warehouse",
     });
 
-    //  Radios por value
-    this.radioShipToHome = page.locator('input[role="radio"][value="0"]');
-    this.radioUtahWillCall = page.locator('input[role="radio"][value="6"]');
-    this.radioPickupWarehouse = page.locator(
-      'input[role="radio"][value="1000"]',
-    );
+    // Los inputs están ocultos (class="peer hidden"), por lo que el clic se hace sobre el label visible
+    this.labelShipToHome = this.radioGroup.locator("label", {
+      hasText: "Ship to home",
+    });
+    this.labelUtahWillCall = this.radioGroup.locator("label", {
+      hasText: "Utah Will Call Center",
+    });
+    this.labelPickupWarehouse = this.radioGroup.locator("label", {
+      hasText: "Pickup Brand Partner Owned Warehouse",
+    });
 
     // Botón continuar
     this.btnContinueWithDelivery = page.locator("button", {
@@ -45,9 +69,7 @@ export class WillCallPage {
     this.btnClose = page.locator('[data-cy="summary-cart-close-btn"]');
 
     //  Banner azul Will Call
-    this.willCallBanner = page.locator('[role="alert"]', {
-      hasText: "You will be picking up your order from the following address",
-    });
+    this.willCallBanner = page.locator('[data-test="shipping-icon"]');
   }
 
   //  Abrir modal de delivery desde el header
@@ -62,14 +84,8 @@ export class WillCallPage {
   async selectUtahWillCall() {
     await this.openDeliveryModal();
 
-    await this.page
-      .locator("label", { hasText: "Utah Will Call Center" })
-      .click();
-
-    await expect(this.radioUtahWillCall).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
+    await this.labelUtahWillCall.click();
+    await expect(this.radioUtahWillCall).toBeChecked();
 
     // Esperar que el botón esté habilitado y hacer clic
     await expect(this.btnContinueWithDelivery).toBeEnabled({ timeout: 5000 });
@@ -83,12 +99,23 @@ export class WillCallPage {
   //  Seleccionar Ship to home
   async selectShipToHome() {
     await this.openDeliveryModal();
-    await this.page.locator("label", { hasText: "Ship to home" }).click();
-    await expect(this.radioShipToHome).toHaveAttribute("aria-checked", "true");
+    await this.labelShipToHome.click();
+    await expect(this.radioShipToHome).toBeChecked();
     await expect(this.btnContinueWithDelivery).toBeEnabled({ timeout: 5000 });
     await this.btnContinueWithDelivery.click();
     await expect(this.modal).not.toBeVisible({ timeout: 10000 });
     console.log("Ship to home seleccionado");
+  }
+
+  //  Seleccionar Pickup Brand Partner Owned Warehouse
+  async selectPickupWarehouse() {
+    await this.openDeliveryModal();
+    await this.labelPickupWarehouse.click();
+    await expect(this.radioPickupWarehouse).toBeChecked();
+    await expect(this.btnContinueWithDelivery).toBeEnabled({ timeout: 5000 });
+    await this.btnContinueWithDelivery.click();
+    await expect(this.modal).not.toBeVisible({ timeout: 10000 });
+    console.log("Pickup Brand Partner Owned Warehouse seleccionado");
   }
 
   // ✅ Verificar banner Will Call en /info o /checkout

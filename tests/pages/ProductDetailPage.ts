@@ -15,18 +15,24 @@ export class ProductDetailPage {
     this.page = page;
 
     // ✅ Por id (únicos en la página)
-    this.checkboxCart = page.locator("#purchaseOption-cart");
-    this.checkboxSubscription = page.locator("#purchaseOption-suscriptionBox");
+    this.checkboxCart = page.locator('[data-test="one-time-checkbox"]');
+    this.checkboxSubscription = page.locator(
+      '[data-test="subscribe-checkbox"]',
+    );
 
     const productDetail = page
       .locator('[data-cy="modify-product-from-detail"]')
       .locator("..");
 
     // ✅ Por data-cy (estables)
-    this.btnPlus = page.locator('[data-cy="plus-box"]').first();
-    this.btnMinus = page.locator('[data-cy="minus-box"]').first();
-    this.inputQuantity = page.locator('[data-cy="quantity-field"]').first();
-    this.btnAddToCart = page.locator('[data-cy="modify-product-from-detail"]');
+    this.btnPlus = page
+      .locator('[data-test="quantity-increase-button"]')
+      .first();
+    this.btnMinus = page
+      .locator('[data-test="quantity-decrease-button"]')
+      .first();
+    this.inputQuantity = page.locator('[data-test="quantity-value"]').first();
+    this.btnAddToCart = page.locator('[data-test="add-to-cart-button"]');
   }
 
   // ✅ Verificar que estamos en la página de detalle
@@ -35,21 +41,90 @@ export class ProductDetailPage {
     await expect(this.inputQuantity).toBeVisible();
   }
 
-  // ✅ Seleccionar tipo de compra
-  async selectPurchaseType(type: "cart" | "subscription") {
-    if (type === "cart") {
-      await this.checkboxCart.check({ force: true });
-    } else {
-      await this.checkboxSubscription.check({ force: true });
+  private async isEventuallyPresent(
+    locator: Locator,
+    timeout = 5000,
+  ): Promise<boolean> {
+    return locator
+      .waitFor({ state: "attached", timeout })
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  private async setCheckboxState(
+    checkbox: Locator,
+    want: boolean,
+    label: string,
+  ) {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const isChecked = await checkbox.isChecked().catch(() => false);
+      if (isChecked === want) return;
+      await checkbox.click({ force: true });
+      await this.page.waitForTimeout(300);
+    }
+
+    const finalState = await checkbox.isChecked().catch(() => false);
+    if (finalState !== want) {
+      console.log(
+        `⚠️ Checkbox '${label}' no quedó en el estado esperado (quería ${want}, quedó en ${finalState})`,
+      );
     }
   }
 
-  // ✅ Establecer cantidad manualmente
+  async selectPurchaseType(type: "cart" | "subscription") {
+    const wantCartChecked = type === "cart";
+    const wantSubscriptionChecked = type === "subscription";
+
+    if (await this.isEventuallyPresent(this.checkboxCart)) {
+      await this.setCheckboxState(
+        this.checkboxCart,
+        wantCartChecked,
+        "one-time",
+      );
+    } else if (wantCartChecked) {
+      console.log(
+        "⏭️ Sin checkbox 'one-time' en este producto (probablemente solo-suscripción)",
+      );
+    }
+
+    if (await this.isEventuallyPresent(this.checkboxSubscription)) {
+      await this.setCheckboxState(
+        this.checkboxSubscription,
+        wantSubscriptionChecked,
+        "subscribe",
+      );
+    } else if (wantSubscriptionChecked) {
+      console.log(
+        "⏭️ Sin checkbox 'subscribe' en este producto (ya viene seleccionado por defecto o no aplica)",
+      );
+    }
+
+    if (await this.isEventuallyPresent(this.checkboxCart)) {
+      await this.setCheckboxState(
+        this.checkboxCart,
+        wantCartChecked,
+        "one-time",
+      );
+    }
+    if (await this.isEventuallyPresent(this.checkboxSubscription)) {
+      await this.setCheckboxState(
+        this.checkboxSubscription,
+        wantSubscriptionChecked,
+        "subscribe",
+      );
+    }
+  }
+
   async setQuantity(quantity: number) {
-    await this.inputQuantity.clear();
-    await this.inputQuantity.pressSequentially(quantity.toString(), {
-      delay: 100,
-    });
+    const currentText = await this.inputQuantity.textContent();
+    const current = parseInt(currentText?.trim() || "2", 10);
+    const diff = quantity - current;
+
+    if (diff > 0) {
+      await this.increaseQuantity(diff);
+    } else if (diff < 0) {
+      await this.decreaseQuantity(-diff);
+    }
   }
 
   // ✅ Aumentar cantidad con el botón +

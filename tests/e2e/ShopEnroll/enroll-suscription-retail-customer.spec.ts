@@ -10,7 +10,7 @@ import { generateEnrollData } from "../../fixtures/enrollData";
 import { products } from "../../fixtures/productData";
 import { ProjectMetadata, getConfig } from "../../utils/testConfig";
 
-test.describe("Enrolamiento Subscription Customer", () => {
+test.describe("Enrolamiento Retail Customer", () => {
   test("Flujo completo: Subscription Customer", async ({ page }) => {
     const project = test.info().project;
     const config = getConfig(project.name, project.metadata as ProjectMetadata);
@@ -34,30 +34,30 @@ test.describe("Enrolamiento Subscription Customer", () => {
       await expect(page).toHaveURL(/\/products/);
     });
 
-    // PASO 2: Seleccionar producto de suscripción
-    await test.step("Seleccionar producto de suscripción", async () => {
+    // PASO 2: Seleccionar producto para Today's Order
+    await test.step("Seleccionar producto para Today's Order", async () => {
       await productsPage.verifyPageLoaded();
       await productsPage.selectProductByName(products.todayOrder.name);
       await expect(page).toHaveURL(/\/products\/\d+/);
-      console.log(`Producto seleccionado: ${products.todayOrder.name}`);
     });
 
-    // PASO 3: Agregar como suscripción al carrito
-    await test.step("Agregar producto como suscripción", async () => {
-      await productDetailPage.selectPurchaseType("subscription");
-      await productDetailPage.setQuantity(1);
+    // PASO 3: Agregar a Today's Order
+    await test.step("Agregar a Today's Order", async () => {
+      await productDetailPage.selectPurchaseType("cart");
+      await productDetailPage.setQuantity(2);
       await productDetailPage.addToCart();
     });
 
-    // PASO 4: Verificar modal y proceder al checkout
-    await test.step("Verificar modal del carrito y proceder", async () => {
+    // PASO 4: Verificar modal y clic en Continue Shopping
+    await test.step("Verificar modal y continuar comprando", async () => {
       await cartModalPage.verifyModalVisible();
-      await cartModalPage.verifyBothSections(products.todayOrder.name);
-      await cartModalPage.proceedToCheckout();
+      await cartModalPage.verifyProductInCart(products.todayOrder.name);
+      console.log(`✅ ${products.todayOrder.name} en Today's Order`);
+      await cartModalPage.proceedToSkip();
+      //agregar la pagina de seleccionar suscription
     });
 
-    // PASO 5: Página Info — llenar todos los campos (usuario nuevo, sin datos precargados)
-    await test.step("Llenar información del nuevo usuario", async () => {
+    await test.step("Llenar información y dirección", async () => {
       await infoPage.verifyPageLoaded();
 
       await infoPage.fillBasicInfo({
@@ -69,16 +69,14 @@ test.describe("Enrolamiento Subscription Customer", () => {
 
       await infoPage.fillShippingAddress(config.info.address);
       await infoPage.saveAddress();
-      await infoPage.selectSubscriptionShipping(
-        config.info.shipping.subscription,
-      );
+      await infoPage.selectOrderShipping(config.info.shipping.order);
       await infoPage.continueToCheckout();
     });
 
     // PASO 6: Checkout con referido por Sponsor ID
     let totals: { orderTotal: string; subscriptionTotal: string };
     await test.step("Completar checkout con referido", async () => {
-      totals = await enrollCheckout.completeSCCheckout(
+      totals = await enrollCheckout.completeRCCheckout(
         config.info.card,
         {
           username: enrollData.username,
@@ -93,7 +91,7 @@ test.describe("Enrolamiento Subscription Customer", () => {
 
     // PASO 7: Verificar confirmación
     await test.step("Verificar confirmación del enrolamiento", async () => {
-      await enrollComplete.verifyCompleteEnrollmentSC(
+      await enrollComplete.verifyCompleteEnrollmentRC(
         enrollData.firstName,
         totals,
       );

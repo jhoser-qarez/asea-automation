@@ -9,57 +9,12 @@ import { EnrollCheckoutPage } from "../../pages/EnrollAssociate/EnrollCheckoutPa
 import { EnrollCompletePage } from "../../pages/EnrollAssociate/EnrollCompletePage";
 import { CartModalPage } from "../../pages/CartModalPage";
 import { InfoPage } from "../../pages/InfoPage";
-import { users } from "../../fixtures/credentials";
-import { userInfo, userInfoLive } from "../../fixtures/userData";
 import { generateEnrollData } from "../../fixtures/enrollData";
-import {
-  distributor,
-  enrollmentSelection,
-} from "../../fixtures/productData";
+import { distributor, enrollmentSelection } from "../../fixtures/productData";
 
-interface ProjectMetadata {
-  env?: string;
-  voPort?: string;
-}
-
-interface TestConfig {
-  env: string;
-  voPort: string | undefined;
-  oscarUser: { username: string; password: string };
-  info: typeof userInfo;
-}
+import { ProjectMetadata, getConfig } from "../../utils/testConfig";
 
 test.describe("Enrolamiento de Brand Partner", () => {
-  function getConfig(
-    projectName: string,
-    metadata?: ProjectMetadata,
-  ): TestConfig {
-    const env =
-      metadata?.env === "stage" || metadata?.env === "live"
-        ? metadata.env
-        : projectName === "stage"
-          ? "stage"
-          : "live";
-
-    const voPort =
-      metadata?.voPort !== undefined
-        ? metadata.voPort
-        : projectName === "live-port-1"
-          ? "10001"
-          : projectName === "live-port-2"
-            ? "10002"
-            : undefined;
-
-    const oscarUser = env === "stage" ? users.oscar : users.oscarLive;
-    const info = env === "stage" ? userInfo : userInfoLive;
-
-    console.log(`    Configuración - Proyecto: ${projectName}`);
-    console.log(`   Entorno: ${env}`);
-    console.log(`   Puerto VO: ${voPort || "ninguno"}`);
-
-    return { env, voPort, oscarUser, info };
-  }
-
   test("Flujo completo para enrolar un BP desde OSCAR", async ({ page }) => {
     const project = test.info().project;
     const config = getConfig(project.name, project.metadata as ProjectMetadata);
@@ -102,7 +57,9 @@ test.describe("Enrolamiento de Brand Partner", () => {
           .catch(() => {});
         const url = new URL(shopPage.url());
         url.port = config.voPort;
-        console.log(`🔀 Redirigiendo shop a puerto ${config.voPort}: ${url.href}`);
+        console.log(
+          `🔀 Redirigiendo shop a puerto ${config.voPort}: ${url.href}`,
+        );
         await shopPage.goto(url.href, {
           waitUntil: "domcontentloaded",
           timeout: 30000,
@@ -159,11 +116,12 @@ test.describe("Enrolamiento de Brand Partner", () => {
     });
 
     // PASO 10: Step 3 - Información y dirección
+    let enrollData: ReturnType<typeof generateEnrollData>;
     await test.step("Step 3 - Llenar información", async () => {
       const enrollStep3 = new EnrollStep3Page(shopPage);
       const infoPage = new InfoPage(shopPage);
 
-      const enrollData = generateEnrollData();
+      enrollData = generateEnrollData();
       console.log(`📧 Email generado: ${enrollData.email}`);
       console.log(`📞 Teléfono generado: ${enrollData.phone}`);
 
@@ -173,18 +131,15 @@ test.describe("Enrolamiento de Brand Partner", () => {
       await infoPage.fillShippingAddress(config.info.address);
       await enrollStep3.saveAddress();
       await infoPage.selectOrderShipping(config.info.shipping.order);
-      await infoPage.selectSubscriptionShipping(config.info.shipping.subscription);
+      await infoPage.selectSubscriptionShipping(
+        config.info.shipping.subscription,
+      );
       await enrollStep3.continueToCheckout();
     });
 
     // PASO 11: Checkout del enrolamiento
     let enrollTotals: { orderTotal: string; subscriptionTotal: string };
-    let enrollData: ReturnType<typeof generateEnrollData>;
     await test.step("Checkout - Completar enrolamiento", async () => {
-      enrollData = generateEnrollData();
-      console.log(`Email: ${enrollData.email}`);
-      console.log(`Teléfono: ${enrollData.phone}`);
-
       const enrollCheckout = new EnrollCheckoutPage(shopPage);
       enrollTotals = await enrollCheckout.completeEnrollCheckout(
         config.info.card,

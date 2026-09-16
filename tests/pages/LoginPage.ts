@@ -1,30 +1,38 @@
 import { Page, Locator, expect } from "@playwright/test";
 import { urls } from "../fixtures/urls";
+import { MarketLabels, defaultLabels } from "../fixtures/marketLabels";
 
 export class LoginPage {
   readonly page: Page;
+  readonly labels: MarketLabels;
+  //Icono Login - Header Shop
+  readonly btnLogout: Locator;
 
-  // 🎯 Locators
+  //Elementos del popup Market
   readonly btnShopHere: Locator;
-  readonly btnPerfil1: Locator;
+
+  //Elementos del formulario de Login
   readonly inputUsername: Locator;
   readonly inputPassword: Locator;
   readonly btnLogin: Locator;
   readonly btnPerfil: Locator;
 
-  constructor(page: Page) {
+  constructor(page: Page, labels: MarketLabels = defaultLabels) {
     this.page = page;
+    this.labels = labels;
 
-    this.btnShopHere = page.getByRole("button", { name: "Shop Here" });
-    this.btnPerfil1 = page.locator("i.mdi-account-circle").locator("..");
-    this.inputUsername = page.locator('[data-test="username-input"]');
-    this.inputPassword = page.locator('[data-test="password-input"]');
-    this.btnLogin = page.locator('[data-test="login-button"]');
-    this.btnPerfil = page.locator("button.icon-login-user");
+    this.btnShopHere = page
+      .locator("button", { hasText: labels.shopHere })
+      .first();
+    this.btnLogout = page.locator('[data-test="profile-icon"]');
+    this.inputUsername = page.locator("#user");
+    this.inputPassword = page.locator("#password");
+    this.btnLogin = page.getByRole("button", { name: labels.login });
+    this.btnPerfil = page.locator(".icon-login-user:visible");
   }
 
   getUsernameLabel(username: string): Locator {
-    return this.page.locator(".item-info", { hasText: username });
+    return this.page.locator(".text-gray-400").filter({ hasText: username });
   }
 
   async goto() {
@@ -35,7 +43,7 @@ export class LoginPage {
 
   async login(username: string, password: string) {
     await this.btnShopHere.click();
-    await this.btnPerfil1.click();
+    await this.btnLogout.click();
     await this.inputUsername.click();
     await this.inputUsername.pressSequentially(username, { delay: 100 });
     await this.inputPassword.click();

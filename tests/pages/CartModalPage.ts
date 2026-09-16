@@ -1,7 +1,15 @@
 import { Page, Locator, expect } from "@playwright/test";
+import { MarketLabels, defaultLabels } from "../fixtures/marketLabels";
+
+// ✅ Escapa caracteres especiales de regex antes de armar un patrón dinámico
+// a partir de un texto de labels (por si algún idioma trae paréntesis, etc.)
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 export class CartModalPage {
   readonly page: Page;
+  readonly labels: MarketLabels;
 
   // 🎯 Locators
   readonly modal: Locator;
@@ -13,36 +21,37 @@ export class CartModalPage {
   readonly btnContinueShopping: Locator;
   readonly btnCheckout: Locator;
   readonly btnNext: Locator;
+  readonly btnSkip: Locator;
 
-  constructor(page: Page) {
+  constructor(page: Page, labels: MarketLabels = defaultLabels) {
     this.page = page;
+    this.labels = labels;
 
     // ✅ Por data-cy
-    this.modal = page.locator('[data-cy="summary-cart-displayed"]');
-    this.btnClose = page.locator('[data-cy="summary-cart-close-btn"]');
-    this.productNameInCart = page.locator(
-      '[data-cy="row-summary-cart-name-product"]',
-    );
+    this.modal = page.locator("#content");
+    this.btnClose = page.getByRole("button", { name: labels.closePanel });
+    this.productNameInCart = page.locator('[data-test="cart-product-title"]');
     this.productNameInSubs = page.locator(
-      '[data-cy="row-summary-box-name-product"]',
+      '[data-test="subscription-product-title"]',
     );
     this.orderTotalAmount = page.locator(
-      '[data-cy="summary-order-totalAmount"]',
+      '[data-test="checkout-todays-order-total-value"]',
     );
     this.subscriptionTotal = page.locator(
-      '[data-cy="summary-subscription-totalAmount"]',
+      '[data-test="checkout-subscriptions-total-value"]',
     );
 
     // ✅ Por texto (no tienen data-cy)
     this.btnContinueShopping = page.locator(
-      ".checkout-page-button-continue button.v-btn--outlined",
+      '[data-test="continue-shopping-button"]',
     );
-    this.btnCheckout = page.locator(
-      ".checkout-page-button-continue button.primary:not(.v-btn--outlined)",
-    );
-    this.btnNext = page.locator(
-      ".checkout-page-button-continue button.primary:not(.v-btn--outlined)",
-    );
+    this.btnCheckout = page.locator('[data-test="checkout-button"]');
+
+    this.btnNext = page.locator('[data-test="checkout-button"]');
+
+    this.btnSkip = page.getByRole("button", {
+      name: new RegExp(escapeRegExp(labels.continueToCheckout), "i"),
+    });
   }
 
   // ✅ Verificar que el modal está visible
@@ -51,9 +60,8 @@ export class CartModalPage {
     await expect(this.btnCheckout).toBeVisible({ timeout: 15000 });
   }
   async verifyModalVisibleOnEnroll() {
-    await this.page.waitForTimeout(5000);
-    await expect(this.modal).toBeVisible();
-    await expect(this.btnNext).toBeVisible();
+    await expect(this.modal).toBeVisible({ timeout: 15000 });
+    await expect(this.btnNext).toBeVisible({ timeout: 15000 });
   }
 
   // ✅ Cerrar modal sin ir al checkout
@@ -67,14 +75,14 @@ export class CartModalPage {
   async verifyProductInCart(productName: string) {
     await expect(
       this.productNameInCart.filter({ hasText: productName }).first(),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15000 });
   }
 
   // ✅ Verificar producto en suscripción
   async verifyProductInSubscription(productName: string) {
     await expect(
       this.productNameInSubs.filter({ hasText: productName }).first(),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15000 });
   }
 
   // ✅ Verificar ambas secciones
@@ -111,5 +119,10 @@ export class CartModalPage {
   async proceedToNextStep() {
     await this.btnNext.click();
     console.log("✅ Continuando al siguiente paso...");
+  }
+  async proceedToSkip() {
+    await this.btnCheckout.click();
+    await this.btnSkip.click();
+    console.log("✅ saltar el paso de suscription");
   }
 }

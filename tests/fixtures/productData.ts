@@ -92,7 +92,7 @@ export const subscriptionBundles = {
     url: "/products/3154",
   },
   renu28: {
-    name: "RENU28® Revitalizing Redox Gel",
+    name: "RENU28 Redox Gel",
     price: "$43.00",
     pv: "30",
     url: "/products/3145",
