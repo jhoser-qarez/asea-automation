@@ -3,6 +3,6 @@
             "tests/e2e/ShopEnroll/2-enroll-suscription-customer-by-market.spec.ts",
             "tests/e2e/ShopEnroll/3-enroll-suscription-retail-customer-by-market.spec.ts"
           ],
-  "markets": ["United States"],
+  "markets": ["United States", "Germany", "Hong Kong"],
   "cases": ["CP-083", "CP-092", "CP-101"]
 }

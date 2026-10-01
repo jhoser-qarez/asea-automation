@@ -1,13 +1,6 @@
-// ✅ Formatos de ID de gobierno confirmados por mercado — cada uno valida
-// un patrón distinto en el campo real (Hong Kong: Checkout, id=
-// "GovermentId"; Malaysia: mismo campo, checkoutVariant "asia" también).
-// "digits8" es el default (compatible con lo que ya usa Hong Kong).
+// ✅ Formatos de ID
 export type NationalIdFormat = "digits8" | "malaysia-nric";
 
-// ✅ Da formato a un seed numérico crudo (12 dígitos, ver idSeed abajo)
-// según el formato de ID que exige cada mercado. Recibe el seed en vez de
-// generarlo de cero para que la unicidad por corrida (basada en timestamp)
-// se mantenga sin importar el formato final.
 export function formatNationalId(
   idSeed: string,
   format: NationalIdFormat = "digits8",
@@ -28,6 +21,20 @@ export function formatNationalId(
   }
 }
 
+// ⚠️ México (Individuo)
+export function formatMexicoCurp(idSeed: string): string {
+  const seed = idSeed.slice(-12).padStart(12, "0");
+  // 4 letras fijas + 6 dígitos (fecha) + 1 letra (sexo) + 2 letras (estado)
+  // + 3 letras (consonantes) + 2 dígitos (homoclave/dígito verificador) = 18
+  return `TEAJ${seed.slice(0, 6)}HDFRRN${seed.slice(6, 8)}`;
+}
+
+export function formatMexicoRfc(idSeed: string): string {
+  const seed = idSeed.slice(-12).padStart(12, "0");
+  // 4 letras fijas + 6 dígitos (fecha) + 3 caracteres de homoclave = 13
+  return `TEAJ${seed.slice(0, 6)}${seed.slice(8, 11)}`;
+}
+
 export function generateEnrollData() {
   const timestamp = Date.now().toString();
 
@@ -43,6 +50,10 @@ export function generateEnrollData() {
   // Compatibilidad hacia atrás: quien ya usaba `.ssn` (Hong Kong) sigue
   // recibiendo el formato "digits8" tal cual.
   const ssn = formatNationalId(idSeed, "digits8");
+  // ✅ Mexico (Individuo): CURP/RFC — inofensivo para el resto de mercados,
+  // igual que "ssn", ya que nadie más los consume.
+  const curp = formatMexicoCurp(idSeed);
+  const rfc = formatMexicoRfc(idSeed);
 
   return {
     email: `jhoserjuarez${emailCounter}@test.com`,
@@ -53,12 +64,10 @@ export function generateEnrollData() {
     birthMonth: "January",
     birthDay: "5",
     birthYear: "1990",
-    // ✅ Descomentado: Hong Kong (Asia) SÍ requiere este campo ("身分證號碼 *",
-    // ID de gobierno — asterisco de obligatorio confirmado en el checkout
-    // real). US lo dejaba comentado porque su propio flujo no lo necesita
-    // (EnrollCheckoutPage.completeEnrollCheckout tiene fillSSN() comentado);
-    // agregar el campo acá es inofensivo para US ya que nadie lo consume.
+
     ssn: ssn,
+    curp: curp,
+    rfc: rfc,
     idSeed: idSeed,
     username: `testuser${emailCounter}`,
     password: "TestEnroll!234",

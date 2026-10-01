@@ -1,8 +1,19 @@
-import { Page, Locator, FrameLocator, expect } from "@playwright/test";
+import { Page, Locator, expect } from "@playwright/test";
 import { CheckoutPage } from "../pages/CheckoutPage";
 import { MarketLabels, defaultLabels } from "../fixtures/marketLabels";
+import {
+  PaymentProvider,
+  PaymentCaseBankDetails,
+} from "../fixtures/paymentCases";
 
 export type PaymentMethodPreference = "creditCard" | "adyen";
+
+// ✅ Métodos anidados dentro del dropin de Adyen
+const ADYEN_NESTED_METHOD_CLASS: Partial<Record<PaymentProvider, string>> = {
+  sofort: "directEbanking",
+  sepaDirectDebit: "sepadirectdebit",
+  klarna: "klarna_paynow",
+};
 
 export class CheckoutPageEuropean extends CheckoutPage {
   readonly checkboxAgreePolicyAndTerms: Locator;
@@ -18,13 +29,24 @@ export class CheckoutPageEuropean extends CheckoutPage {
   readonly labelAdyenProvider: Locator;
   readonly inputHolderName: Locator; // único campo de Adyen fuera de un iframe
 
+  // ✅ GlobalCollect ("Bank Draft - TEST")
+  readonly radioGlobalCollectProvider: Locator;
+  readonly rowGlobalCollect: Locator;
+
+  // ✅ PayPal (BraintreeWithPayPal)
+  readonly radioPayPalProvider: Locator;
+  readonly rowPayPal: Locator;
+
   override readonly inputCardName: Locator;
   override readonly inputCardNumber: Locator;
   override readonly inputExpMonth: Locator;
   override readonly inputExpYear: Locator;
   override readonly inputCVV: Locator;
 
-  private usingAdyenIframe = false;
+  protected usingAdyenRedirectMethod: PaymentProvider | null = null;
+  protected usingGlobalCollect = false;
+  protected usingSepa = false;
+  protected usingPayPal = false;
 
   constructor(page: Page, labels: MarketLabels = defaultLabels) {
     super(page, labels);
@@ -55,6 +77,20 @@ export class CheckoutPageEuropean extends CheckoutPage {
     this.labelAdyenProvider = adyenRow.locator("label.cursor-pointer").first();
     this.inputHolderName = page.locator('input[name="holderName"]').last();
 
+    this.radioGlobalCollectProvider = page.locator(
+      'input[type="radio"][value="GlobalCollect"]',
+    );
+    this.rowGlobalCollect = page
+      .locator('[data-test="checkout-payment-method-radio"]')
+      .filter({ has: this.radioGlobalCollectProvider });
+
+    this.radioPayPalProvider = page.locator(
+      'input[type="radio"][value="BraintreeWithPayPal"]',
+    );
+    this.rowPayPal = page
+      .locator('[data-test="checkout-payment-method-radio"]')
+      .filter({ has: this.radioPayPalProvider });
+
     this.inputCardName = page
       .locator('[data-test="checkout-card-name-input"] input')
       .last();
@@ -70,25 +106,6 @@ export class CheckoutPageEuropean extends CheckoutPage {
     this.inputCVV = page
       .locator('[data-test="checkout-card-cvv-input"] input')
       .last();
-  }
-
-  // ✅ Los campos de número/vencimiento/CVV de Adyen viven cada uno en su
-  // propio iframe seguro, ubicados por el atributo data-cse (identificador
-  // técnico interno de Adyen, estable sin importar el idioma).
-  private cardNumberFrame(): FrameLocator {
-    return this.page.frameLocator(
-      'span[data-cse="encryptedCardNumber"] iframe',
-    );
-  }
-  private cardExpiryFrame(): FrameLocator {
-    return this.page.frameLocator(
-      'span[data-cse="encryptedExpiryDate"] iframe',
-    );
-  }
-  private cardCvvFrame(): FrameLocator {
-    return this.page.frameLocator(
-      'span[data-cse="encryptedSecurityCode"] iframe',
-    );
   }
 
   private async isEventuallyVisible(
@@ -184,10 +201,126 @@ export class CheckoutPageEuropean extends CheckoutPage {
     return true;
   }
 
+  // ✅ GlobalCollect ("Bank Draft - TEST")
+  private async selectGlobalCollect(bankDetails?: PaymentCaseBankDetails) {
+    const isChecked = await this.radioGlobalCollectProvider
+      .isChecked()
+      .catch(() => false);
+    if (!isChecked) {
+      await this.rowGlobalCollect
+        .locator("label.cursor-pointer")
+        .first()
+        .click();
+    }
+
+    const accountNameInput = this.rowGlobalCollect.locator("#AccountName");
+    const ibanInput = this.rowGlobalCollect.locator("#Iban");
+    await expect(accountNameInput).toBeVisible({ timeout: 15000 });
+
+    if (bankDetails) {
+      await accountNameInput.fill(bankDetails.ownerName);
+      await ibanInput.fill(bankDetails.iban);
+    }
+
+    this.usingAdyenIframe = false;
+    this.usingGlobalCollect = true;
+    console.log("✅ GlobalCollect (Bank Draft) seleccionado");
+  }
+
+  // ✅ Métodos anidados dentro del dropin de Adyen que no son la tarjeta
+  // (Sofort/SEPA/Klarna)
+  private async selectAdyenNestedMethod(
+    provider: PaymentProvider,
+    bankDetails?: PaymentCaseBankDetails,
+  ) {
+    const isAdyenChecked = await this.radioAdyenProvider
+      .isChecked()
+      .catch(() => false);
+    if (!isAdyenChecked) {
+      await this.labelAdyenProvider.click();
+    }
+    await this.page.waitForTimeout(1000);
+
+    const methodClass = ADYEN_NESTED_METHOD_CLASS[provider];
+    const methodContainer = this.page.locator(
+      `.adyen-checkout__payment-method--${methodClass}`,
+    );
+    await methodContainer.locator("button").first().click();
+    await this.page.waitForTimeout(1000);
+
+    this.usingAdyenIframe = false;
+
+    if (provider === "sepaDirectDebit") {
+      this.usingSepa = true;
+      if (bankDetails) {
+        await methodContainer
+          .locator('input[name="ownerName"]')
+          .fill(bankDetails.ownerName);
+        await methodContainer
+          .locator('input[name="ibanNumber"]')
+          .fill(bankDetails.iban);
+      }
+      console.log("✅ SEPA Lastschrift seleccionado (formulario inline)");
+      return;
+    }
+
+    // Sofort / Klarna: solo redirect, sin campos propios.
+    this.usingAdyenRedirectMethod = provider;
+    console.log(`✅ "${provider}" seleccionado (dentro de Adyen, redirect)`);
+  }
+
   override async selectCreditCardPayment(
     preferred: PaymentMethodPreference = "creditCard",
+    provider?: PaymentProvider,
+    bankDetails?: PaymentCaseBankDetails,
   ) {
     await this.page.waitForLoadState("networkidle", { timeout: 30000 });
+
+    if (provider === "GlobalCollect") {
+      await this.selectGlobalCollect(bankDetails);
+      return;
+    }
+    if (
+      provider === "sofort" ||
+      provider === "klarna" ||
+      provider === "sepaDirectDebit"
+    ) {
+      await this.selectAdyenNestedMethod(provider, bankDetails);
+      return;
+    }
+
+    if (provider === "Braintree") {
+      const selected = await this.trySelectDirectCard();
+      if (!selected) {
+        throw new Error(
+          "Braintree: no se encontró la fila de tarjeta directa ('Credit Card - TEST') en este checkout",
+        );
+      }
+      return;
+    }
+    if (provider === "Adyen") {
+      const selected = await this.trySelectAdyen();
+      if (!selected) {
+        throw new Error(
+          "Adyen: no se encontró la sección de Adyen en este checkout",
+        );
+      }
+      return;
+    }
+    if (provider === "BraintreeWithPayPal") {
+      const isChecked = await this.radioPayPalProvider
+        .isChecked()
+        .catch(() => false);
+      if (!isChecked) {
+        await this.rowPayPal.locator("label.cursor-pointer").first().click();
+      }
+      this.usingAdyenIframe = false;
+      this.usingPayPal = true;
+      console.log(
+        "✅ PayPal seleccionado (sin formulario de tarjeta — el popup se abre al confirmar la orden)",
+      );
+      return;
+    }
 
     const attempts =
       preferred === "adyen"
@@ -203,8 +336,7 @@ export class CheckoutPageEuropean extends CheckoutPage {
     );
   }
 
-  // ✅ Llenar tarjeta — vía iframes de Adyen o inputs planos, según lo que
-  // selectCreditCardPayment() haya encontrado disponible en este mercado.
+  // ✅ Llenar tarjeta
   override async fillCardDetails(card: {
     name: string;
     number: string;
@@ -212,6 +344,14 @@ export class CheckoutPageEuropean extends CheckoutPage {
     expYear: string;
     cvv: string;
   }) {
+    if (
+      this.usingGlobalCollect ||
+      this.usingSepa ||
+      this.usingAdyenRedirectMethod ||
+      this.usingPayPal
+    ) {
+      return;
+    }
     if (this.usingAdyenIframe) {
       const expiry = `${card.expMonth}/${card.expYear.slice(-2)}`;
 
@@ -226,6 +366,22 @@ export class CheckoutPageEuropean extends CheckoutPage {
       );
 
       await numberInput.pressSequentially(card.number, { delay: 100 });
+      await this.page.waitForTimeout(300);
+
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const rawValue = (
+          await numberInput.inputValue().catch(() => "")
+        ).replace(/\s/g, "");
+        if (rawValue.length >= card.number.length) break;
+        console.log(
+          `⚠️ Número de tarjeta incompleto en el campo (Adyen: "${rawValue}"), reintentando (${attempt}/3)...`,
+        );
+        await numberInput.click();
+        await this.page.keyboard.press("Control+A");
+        await this.page.keyboard.press("Backspace");
+        await numberInput.pressSequentially(card.number, { delay: 150 });
+        await this.page.waitForTimeout(300);
+      }
 
       await this.page.waitForTimeout(500);
       await expiryInput.click();

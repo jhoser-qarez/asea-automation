@@ -1,6 +1,10 @@
-import { Page, Locator, Frame, FrameLocator, expect } from "@playwright/test";
+import { Page, Locator, Frame, expect } from "@playwright/test";
 import { CheckoutPage } from "../CheckoutPage";
-import { MarketLabels, defaultLabels } from "../../fixtures/marketLabels";
+import {
+  MarketLabels,
+  defaultLabels,
+  translateEnrollBirthMonth,
+} from "../../fixtures/marketLabels";
 import { PaymentProvider } from "../../fixtures/paymentCases";
 import { users } from "../../fixtures/credentials";
 
@@ -52,30 +56,16 @@ export class EnrollCheckoutPage extends CheckoutPage {
   readonly labelAgreements: Locator;
   readonly checkboxAgreements: Locator;
 
-  // 🎯 Adyen ("Alternative Payments") — radio de nivel superior y campo de
-  // nombre del titular dentro del dropin.
-  readonly radioAdyenProvider: Locator;
-  readonly inputHolderName: Locator;
-
-  // ✅ Qué proveedor terminó seleccionado, para que fillCardDetails()/
-  // placeOrder() sepan cómo continuar.
   protected usingAdyenIframe = false;
-  // PayPal (BraintreeWithPayPal): no hay formulario de tarjeta; la
-  // autenticación se hace en el popup al confirmar la orden.
+
   protected usingPayPal = false;
-  // GPay (BraintreeWithGPay): igual que PayPal, sin formulario de tarjeta.
+
   protected usingGPay = false;
-  // Wallets dentro del dropin de Adyen (E-Banking/Atome/Boost — Malasia):
-  // Adyen redirige a un simulador externo en vez de usar el formulario.
+
   protected usingAdyenRedirectMethod: PaymentProvider | null = null;
 
   constructor(page: Page, labels: MarketLabels = defaultLabels) {
     super(page, labels);
-
-    this.radioAdyenProvider = page.locator(
-      'input[type="radio"][value="Adyen"]',
-    );
-    this.inputHolderName = page.locator('input[name="holderName"]');
 
     // ✅ Subscription mismo método
     this.radioBoxSameAsCart = page.locator(
@@ -129,22 +119,6 @@ export class EnrollCheckoutPage extends CheckoutPage {
     this.labelAgreements = page.locator('label[for="chkAgreePolicyAndTerms"]');
   }
 
-  private cardNumberFrame(): FrameLocator {
-    return this.page.frameLocator(
-      'span[data-cse="encryptedCardNumber"] iframe',
-    );
-  }
-  private cardExpiryFrame(): FrameLocator {
-    return this.page.frameLocator(
-      'span[data-cse="encryptedExpiryDate"] iframe',
-    );
-  }
-  private cardCvvFrame(): FrameLocator {
-    return this.page.frameLocator(
-      'span[data-cse="encryptedSecurityCode"] iframe',
-    );
-  }
-
   // ✅ Selección de método de pago.
 
   override async selectCreditCardPayment(
@@ -156,9 +130,18 @@ export class EnrollCheckoutPage extends CheckoutPage {
         .waitFor({ state: "attached", timeout: 5000 })
         .then(() => true)
         .catch(() => false);
-      const adyenIsDefault = adyenPresent
-        ? await this.radioAdyenProvider.isChecked().catch(() => false)
-        : false;
+
+      let adyenIsDefault = false;
+      if (adyenPresent) {
+        const deadline = Date.now() + 12000;
+        while (Date.now() < deadline) {
+          adyenIsDefault = await this.radioAdyenProvider
+            .isChecked()
+            .catch(() => false);
+          if (adyenIsDefault) break;
+          await this.page.waitForTimeout(500);
+        }
+      }
 
       if (adyenIsDefault) {
         await expect(
@@ -199,7 +182,8 @@ export class EnrollCheckoutPage extends CheckoutPage {
     if (
       provider === "eBanking" ||
       provider === "atome" ||
-      provider === "boost"
+      provider === "boost" ||
+      provider === "oxxo"
     ) {
       const isAdyenChecked = await this.radioAdyenProvider
         .isChecked()
@@ -212,6 +196,7 @@ export class EnrollCheckoutPage extends CheckoutPage {
         eBanking: "molpay_ebanking_fpx_MY",
         atome: "atome",
         boost: "molpay_boost",
+        oxxo: "oxxo",
       }[provider];
       const methodContainer = this.page.locator(
         `.adyen-checkout__payment-method--${methodClass}`,
@@ -274,9 +259,6 @@ export class EnrollCheckoutPage extends CheckoutPage {
     const radio = this.page.locator(`input[type="radio"][value="${provider}"]`);
     const isChecked = await radio.isChecked().catch(() => false);
     if (!isChecked) {
-      // El input real está oculto (class="peer hidden"); el clickeable es
-      // su <label for="<provider>"> (hay 2: el círculo y el de texto —
-      // .first() alcanza).
       await this.page.locator(`label[for="${provider}"]`).first().click();
     }
 
@@ -302,7 +284,6 @@ export class EnrollCheckoutPage extends CheckoutPage {
     cvv: string;
   }) {
     if (this.usingPayPal || this.usingGPay || this.usingAdyenRedirectMethod) {
-      // Sin formulario de tarjeta — no hay nada que llenar acá.
       return;
     }
     if (!this.usingAdyenIframe) {
@@ -323,6 +304,23 @@ export class EnrollCheckoutPage extends CheckoutPage {
     );
 
     await numberInput.pressSequentially(card.number, { delay: 100 });
+    await this.page.waitForTimeout(300);
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const rawValue = (await numberInput.inputValue().catch(() => "")).replace(
+        /\s/g,
+        "",
+      );
+      if (rawValue.length >= card.number.length) break;
+      console.log(
+        `⚠️ Número de tarjeta incompleto en el campo (Adyen: "${rawValue}"), reintentando (${attempt}/3)...`,
+      );
+      await numberInput.click();
+      await this.page.keyboard.press("Control+A");
+      await this.page.keyboard.press("Backspace");
+      await numberInput.pressSequentially(card.number, { delay: 150 });
+      await this.page.waitForTimeout(300);
+    }
 
     await this.page.waitForTimeout(500);
     await expiryInput.click();
@@ -380,7 +378,7 @@ export class EnrollCheckoutPage extends CheckoutPage {
   private paymentModal(): Locator {
     return this.page
       .locator('[role="dialog"]')
-      .filter({ hasText: "PAYMENT" })
+      .filter({ hasText: "Cart" })
       .first();
   }
 
@@ -659,14 +657,8 @@ export class EnrollCheckoutPage extends CheckoutPage {
     console.log(`✅ GPay (${slug}): aprobado`);
   }
 
-  // ✅ Verificar página cargada — versión propia: la página de enroll no
-  // confirma via rowCreditCard visible (esa parte extra la agrega
-  // CheckoutPage para el checkout normal, no probada acá).
+  // ✅ Verificar página cargada
   override async verifyPageLoaded() {
-    // ⚠️ Timeout default (5s) confirmado insuficiente en Taiwan — la
-    // transición Info→Checkout tarda más ahí (probablemente por
-    // validaciones extra de dirección/banco). Se sube el margen; no afecta
-    // a mercados donde ya era rápida.
     await expect(this.page).toHaveURL(/\/checkout/, { timeout: 30000 });
     await this.page.waitForLoadState("networkidle", { timeout: 60000 });
     await expect(
@@ -677,9 +669,9 @@ export class EnrollCheckoutPage extends CheckoutPage {
     console.log(`✅ Checkout de enrolamiento cargado`);
   }
 
-  // ✅ Llenar fecha de nacimiento
   async fillBirthDate(month: string, day: string, year: string) {
-    await this.selectAutocompleteOption(this.selectMonth, month);
+    const translatedMonth = translateEnrollBirthMonth(month, this.labels);
+    await this.selectAutocompleteOption(this.selectMonth, translatedMonth);
     await this.selectAutocompleteOption(this.selectDay, day);
 
     await this.inputYear.clear();
@@ -733,10 +725,31 @@ export class EnrollCheckoutPage extends CheckoutPage {
   }
 
   // ✅ No hay referido
+
   async selectNoReferral() {
+    const noReferralLabel = this.page.locator("label", {
+      hasText: this.labels.noOneReferredMe,
+    });
+    const sponsorError = this.page.getByText("SPONSOR_NOT_FOUND");
+
+    await noReferralLabel.click();
     await this.page
-      .locator("label", { hasText: this.labels.noOneReferredMe })
-      .click();
+      .waitForLoadState("networkidle", { timeout: 10000 })
+      .catch(() => {});
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const stillFailing = await sponsorError.isVisible().catch(() => false);
+      if (!stillFailing) break;
+      console.log(
+        `⚠️ SPONSOR_NOT_FOUND visible tras seleccionar 'No one referred me', reintentando (${attempt}/3)...`,
+      );
+      await noReferralLabel.click();
+      await this.page
+        .waitForLoadState("networkidle", { timeout: 10000 })
+        .catch(() => {});
+      await this.page.waitForTimeout(1000);
+    }
+
     console.log("✅ 'No one referred me' seleccionado");
   }
 
@@ -803,6 +816,16 @@ export class EnrollCheckoutPage extends CheckoutPage {
     console.log("✅ Subscription mismo método de pago que Cart");
   }
 
+  async selectSubscriptionAlternatePayment() {
+    const deferredInput = this.page.locator('input[value="DeferredPayment"]');
+    const deferredId = await deferredInput.getAttribute("id");
+    await this.page.locator(`label[for="${deferredId}"]`).first().click();
+    await expect(deferredInput).toBeChecked({ timeout: 5000 });
+    console.log(
+      "✅ Suscripción: método de pago alternativo seleccionado (Deferred Payment, por usar Oxxo en el Cart)",
+    );
+  }
+
   // ✅ Confirmar orden
   override async placeOrder(needs3ds = false, liveMode = false) {
     await this.btnCheckout.scrollIntoViewIfNeeded();
@@ -823,6 +846,19 @@ export class EnrollCheckoutPage extends CheckoutPage {
         return;
       }
       await this.payWithPayPal();
+
+      const relaunchLink = this.page.getByText("Click to Continue");
+      const needsRelaunch = await relaunchLink
+        .waitFor({ state: "visible", timeout: 5000 })
+        .then(() => true)
+        .catch(() => false);
+      if (needsRelaunch) {
+        console.log(
+          "⚠️ PayPal: overlay de 'relanzar ventana' detectado, clickeando 'Click to Continue'",
+        );
+        await relaunchLink.click();
+      }
+
       await this.page.waitForURL(/\/complete/, { timeout: 120000 });
       console.log("✅ Orden confirmada, navegando a /complete");
       return;
@@ -864,6 +900,18 @@ export class EnrollCheckoutPage extends CheckoutPage {
 
     if (this.usingAdyenRedirectMethod) {
       const slug = this.usingAdyenRedirectMethod;
+
+      if (slug === "oxxo") {
+        await Promise.all([
+          this.page.waitForURL(/\/complete/, { timeout: 60000 }),
+          this.btnCheckout.click(),
+        ]);
+        console.log(
+          "✅ Oxxo: pedido confirmado con voucher de pago en efectivo",
+        );
+        return;
+      }
+
       const [popup] = await Promise.all([
         this.page.waitForEvent("popup", { timeout: 10000 }).catch(() => null),
         this.page
@@ -944,10 +992,27 @@ export class EnrollCheckoutPage extends CheckoutPage {
       }
       await this.page.waitForURL(/\/complete/, { timeout: 120000 });
     } else {
-      await Promise.all([
-        this.page.waitForURL(/\/complete/, { timeout: 120000 }),
-        this.btnCheckout.click(),
-      ]);
+      await this.btnCheckout.click();
+
+      const sponsorError = this.page.getByText("SPONSOR_NOT_FOUND");
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const sawSponsorError = await sponsorError
+          .waitFor({ state: "visible", timeout: 10000 })
+          .then(() => true)
+          .catch(() => false);
+        if (!sawSponsorError) break;
+
+        console.log(
+          `⚠️ SPONSOR_NOT_FOUND tras el clic en Checkout, reintentando (${attempt}/3)...`,
+        );
+        await this.page
+          .waitForLoadState("networkidle", { timeout: 15000 })
+          .catch(() => {});
+
+        await this.btnCheckout.click({ timeout: 20000 }).catch(() => {});
+      }
+
+      await this.page.waitForURL(/\/complete/, { timeout: 120000 });
     }
 
     console.log("✅ Orden confirmada, navegando a /complete");
@@ -986,8 +1051,13 @@ export class EnrollCheckoutPage extends CheckoutPage {
     // 2. Billing address (ya viene marcado)
     await this.verifyTodayOrderBillingAddress();
 
-    // 3. Subscription mismo método
-    await this.verifySubscriptionSamePayment();
+    // 3. Subscription mismo método (Oxxo: no puede ser "igual que el
+    // carrito", ver selectSubscriptionAlternatePayment)
+    if (this.usingAdyenRedirectMethod === "oxxo") {
+      await this.selectSubscriptionAlternatePayment();
+    } else {
+      await this.verifySubscriptionSamePayment();
+    }
 
     // 4. ✅ Nuevos campos del enrolamiento
     await this.fillBirthDate(
@@ -1039,7 +1109,11 @@ export class EnrollCheckoutPage extends CheckoutPage {
     await this.selectCreditCardPayment(opts.provider, opts.openInvoiceDetails);
     await this.fillCardDetails(card);
     await this.verifyTodayOrderBillingAddress();
-    await this.verifySubscriptionSamePayment();
+    if (this.usingAdyenRedirectMethod === "oxxo") {
+      await this.selectSubscriptionAlternatePayment();
+    } else {
+      await this.verifySubscriptionSamePayment();
+    }
 
     // ✅ Sección de referidos
     if (referral.type === "name") {
@@ -1135,7 +1209,6 @@ export class EnrollCheckoutPage extends CheckoutPage {
     await this.selectCreditCardPayment();
     await this.fillCardDetails(card);
     await this.verifyTodayOrderBillingAddress();
-    
 
     // ✅ Sección de referidos
     if (referral.type === "name") {

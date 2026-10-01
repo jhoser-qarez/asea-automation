@@ -129,6 +129,15 @@ export const defaultLabels: MarketLabels = {
   monthNames: ENGLISH_MONTH_NAMES,
 };
 
+// ✅ Inglés/Reino Unido — idéntico a defaultLabels salvo por la ortografía
+// británica confirmada en la página real de /complete ("ENROLMENT", una
+// sola L, en vez de "ENROLLMENT").
+export const britishLabels: MarketLabels = {
+  ...defaultLabels,
+  enrollmentDetails: "ENROLMENT", // ✅ confirmado en página real de /complete
+  continueToCheckout: "Continue to check-out", // ✅ confirmado en página real (modal de suscripción)
+};
+
 // ✅ Alemán
 
 export const germanLabels: MarketLabels = {
@@ -311,6 +320,130 @@ export const CroatiaLabels: MarketLabels = {
   ],
 };
 
+// ✅ Húngaro
+export const hungarianLabels: MarketLabels = {
+  shopHere: "Vásárolj itt",
+  login: "BEJELENTKEZÉS",
+
+  closePanel: "Panel bezárása",
+  continueToCheckout: "TOVÁBB A PÉNZTÁRHOZ", // ✅ confirmado en Step 3 (Info)
+
+  backToShopping: "VISSZA A VÁSÁRLÁSRA", // ✅ confirmado en Step 3 (Info)
+
+  creditCard: "Credit Card",
+  useMyShippingAddress: "A szállítási címem használata", // ✅ confirmado en checkout real
+  useDifferentAddress: "Más cím használata", // ✅ confirmado en checkout real
+  sameAsCartBillingMethod: "Ugyanaz, mint a kosár számlázási módja",
+  useSameAddressAsTodaysOrder: "Ugyanaz a cím, mint a mai rendelésnél",
+  backToInformation: "VISSZA AZ INFORMÁCIÓHOZ", // ✅ confirmado en checkout real
+
+  orderReceived: "Megrendelését megkaptuk",
+  orderNumberLabel: "Rendelési szám",
+  downloadReceipt: "Nyugta letöltése",
+
+  sponsorNamePrefix: "SZPONZOR NEVE:", // ✅ confirmado en Step 2/3
+  addToCart: "Hozzáadás a kosárhoz", // ✅ confirmado en Step 1
+  buildYourPack: "Állítsd össze a saját csomagod", // ✅ confirmado en Step 1
+
+  stepTwoTitle: "2. lépés", // ✅ confirmado (substring del h2 real de Step 2)
+  addToSubscription: "Hozzáadás az előfizetéshez", // ✅ confirmado en Step 2
+  skipThisStep: "LÉPÉS KIHAGYÁSA", // ✅ confirmado en Step 2
+  buildMyBundle: "Saját Előfizetési Csomag Összeállítása", // ✅ confirmado en Step 2
+
+  stepThreeTitle: "3. lépés", // ✅ confirmado (substring del h2 real de Step 3)
+  enrollmentPerksPattern: /A belépési csomag előnyei.*50%/, // ✅ confirmado en Step 2/3
+  saveAddress: "Cím mentése", // ✅ confirmado en Step 3 (Info)
+
+  searchByName: "Keresés név szerint", // ✅ confirmado en checkout real
+  searchBySponsorId: "Keresés szponzorazonosító szerint", // ✅ confirmado en checkout real
+  noOneReferredMe: "Senki nem ajánlott", // ✅ confirmado en checkout real
+
+  welcomeToAsea: "üdvözlünk az Aseánál",
+  orderReceivedEnroll: "Megrendelését megkaptuk!",
+  enrollmentDetails: "REGISZTRÁCIÓ",
+  welcomeMessage: (firstName) =>
+    `Köszönjük, ${firstName}, és üdvözlünk az Aseánál!`,
+  confirmationMessageSC: (firstName) => `Köszönjük, ${firstName}`,
+
+  monthNames: [
+    "Január",
+    "Február",
+    "Március",
+    "Április",
+    "Május",
+    "Június",
+    "Július",
+    "Augusztus",
+    "Szeptember",
+    "Október",
+    "November",
+    "December",
+  ],
+};
+
+// ✅ Español (España) —
+export const spainLabels: MarketLabels = {
+  shopHere: "Compra aquí",
+  login: "INICIAR SESIÓN",
+
+  closePanel: "Cerrar panel",
+  continueToCheckout: "CONTINUA PARA FINALIZAR LA COMPRA", // ✅ confirmado en Step 3 (Info)
+
+  backToShopping: "VOLVER A LA TIENDA", // ✅ confirmado en Step 3 (Info)
+
+  creditCard: "Credit Card",
+  useMyShippingAddress: "Usar mi dirección de envío",
+  useDifferentAddress: "Usar una dirección diferente", // ✅ confirmado en checkout real
+  sameAsCartBillingMethod: "Igual que tu método de facturación del carrito", // ✅ confirmado en checkout real
+  useSameAddressAsTodaysOrder:
+    "Usar la misma dirección que en el pedido de hoy",
+  backToInformation: "Volver a la información",
+
+  orderReceived: "Hemos recibido tu pedido",
+  // ✅ Confirmado con evidencia real: "Número del pedido", no "Número de
+  // pedido".
+  orderNumberLabel: "Número del pedido",
+  downloadReceipt: "Descargar factura", // ✅ confirmado en página real de /complete
+
+  sponsorNamePrefix: "Nombre De Patrocinador:", // ✅ confirmado en Step 2/3
+  addToCart: "Añadir al carrito",
+  buildYourPack: "Crea tu propio paquete", // ✅ confirmado en Step 1
+
+  stepTwoTitle: "Paso 2", // ✅ confirmado (substring del h2 real de Step 2)
+  addToSubscription: "Añadir a la suscripción", // ✅ confirmado en Step 2
+  skipThisStep: "SALTAR ESTE PASO", // ✅ confirmado en Step 2
+  buildMyBundle: "Crear Mi Paquete De Suscripción", // ✅ confirmado en Step 2
+
+  stepThreeTitle: "Paso 3",
+  enrollmentPerksPattern: /Enrollment Pack Perks:.*save 50%/,
+  saveAddress: "GUARDAR DIRECCIÓN",
+
+  searchByName: "Buscar por nombre", // ✅ confirmado en checkout real
+  searchBySponsorId: "Buscar por ID de patrocinador", // ✅ confirmado en checkout real
+  noOneReferredMe: "Nadie me ha recomendado", // ✅ confirmado en checkout real
+
+  welcomeToAsea: "bienvenido a Asea",
+  orderReceivedEnroll: "¡Hemos recibido tu pedido!",
+  enrollmentDetails: "INSCRIPCIÓN",
+  welcomeMessage: (firstName) => `Gracias, ${firstName}, y bienvenido a Asea!`,
+  confirmationMessageSC: (firstName) => `Gracias, ${firstName}`,
+
+  monthNames: [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ],
+};
+
 export const hongKongLabels: MarketLabels = {
   shopHere: "在此購買",
   login: "登入",
@@ -369,5 +502,71 @@ export const hongKongLabels: MarketLabels = {
     "十月",
     "十一月",
     "十二月",
+  ],
+};
+
+// ✅ Español (México)
+export const spanishLabels: MarketLabels = {
+  shopHere: "Comprar aquí",
+  login: "INICIAR SESIÓN",
+
+  closePanel: "Cerrar panel",
+  continueToCheckout: "Continuar a Pagar", // ✅ confirmado (screenshot real)
+
+  backToShopping: "VOLVER A COMPRAS",
+
+  creditCard: "Credit Card", // ✅ confirmado (screenshot real): "Credit Card - TEST", sin traducir
+  useMyShippingAddress: "Usar mi dirección de envío",
+  useDifferentAddress: "Usar una dirección diferente",
+  sameAsCartBillingMethod: "Mismo método de facturación que tu carrito",
+  // ✅ Confirmado con evidencia real (checkout de México con Today's Order +
+  // Suscripción): el texto real es "para las compras de una sola vez", no
+  // "que el pedido de hoy".
+  useSameAddressAsTodaysOrder:
+    "Usar la misma dirección para las compras de una sola vez",
+  backToInformation: "Volver a la información",
+
+  orderReceived: "Tu pedido ha sido recibido",
+  // ✅ Confirmado con evidencia real: "Número del pedido", no "Número de
+  // pedido".
+  orderNumberLabel: "Número del pedido",
+  downloadReceipt: "Descargar recibo",
+
+  sponsorNamePrefix: "Nombre De Patrocinador:", // ✅ confirmado (screenshot real)
+  addToCart: "AGREGAR AL CARRITO",
+  buildYourPack: "ARMA TU PAQUETE",
+
+  stepTwoTitle: "Paso 2", // ✅ confirmado (screenshot real)
+  addToSubscription: "AGREGAR A LA SUSCRIPCIÓN",
+  skipThisStep: "SALTAR ESTE PASO", // ✅ confirmado (screenshot real)
+  buildMyBundle: "ARMA MI PAQUETE",
+
+  stepThreeTitle: "Paso 3",
+  enrollmentPerksPattern: /./, // ⚠️ sin confirmar el texto real — patrón laxo temporal
+  saveAddress: "Guardar dirección",
+
+  searchByName: "Buscar por nombre",
+  searchBySponsorId: "Buscar por ID de patrocinador",
+  noOneReferredMe: "Nadie me refirió",
+
+  welcomeToAsea: "bienvenido a Asea",
+  orderReceivedEnroll: "¡Tu pedido ha sido recibido!",
+  enrollmentDetails: "INSCRIPCIÓN",
+  welcomeMessage: (firstName) => `Gracias, ${firstName}, y bienvenido a Asea!`,
+  confirmationMessageSC: (firstName) => `Gracias, ${firstName}`,
+
+  monthNames: [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
   ],
 };

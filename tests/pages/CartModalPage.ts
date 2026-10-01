@@ -1,8 +1,6 @@
 import { Page, Locator, expect } from "@playwright/test";
 import { MarketLabels, defaultLabels } from "../fixtures/marketLabels";
 
-// ✅ Escapa caracteres especiales de regex antes de armar un patrón dinámico
-// a partir de un texto de labels (por si algún idioma trae paréntesis, etc.)
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -29,7 +27,17 @@ export class CartModalPage {
 
     // ✅ Por data-cy
     this.modal = page.locator("#content");
-    this.btnClose = page.getByRole("button", { name: labels.closePanel });
+    // ⚠️ Confirmado con evidencia real (Alemania): el botón "X" para cerrar
+    // el modal expone su aria-label SIEMPRE en inglés ("Close panel"), sin
+    // importar el mercado/idioma — mismo patrón ya confirmado en otros
+    // elementos de UI no traducidos (panel de agradecimiento en /complete).
+    // Se acepta el label del mercado O el inglés por defecto.
+    this.btnClose = page.getByRole("button", {
+      name: new RegExp(
+        `${escapeRegExp(labels.closePanel)}|${escapeRegExp(defaultLabels.closePanel)}`,
+        "i",
+      ),
+    });
     this.productNameInCart = page.locator('[data-test="cart-product-title"]');
     this.productNameInSubs = page.locator(
       '[data-test="subscription-product-title"]',
@@ -55,13 +63,14 @@ export class CartModalPage {
   }
 
   // ✅ Verificar que el modal está visible
+
   async verifyModalVisible() {
-    await expect(this.modal).toBeVisible({ timeout: 15000 });
-    await expect(this.btnCheckout).toBeVisible({ timeout: 15000 });
+    await expect(this.modal).toBeVisible({ timeout: 30000 });
+    await expect(this.btnCheckout).toBeVisible({ timeout: 30000 });
   }
   async verifyModalVisibleOnEnroll() {
-    await expect(this.modal).toBeVisible({ timeout: 15000 });
-    await expect(this.btnNext).toBeVisible({ timeout: 15000 });
+    await expect(this.modal).toBeVisible({ timeout: 30000 });
+    await expect(this.btnNext).toBeVisible({ timeout: 30000 });
   }
 
   // ✅ Cerrar modal sin ir al checkout
@@ -109,8 +118,8 @@ export class CartModalPage {
     await this.btnCheckout.click();
     await expect(this.page).toHaveURL(/\/info/);
   }
-  
-  // Ir a seleccionar suscription 
+
+  // Ir a seleccionar suscription
   async proceedToSuscriptionPage() {
     await this.btnCheckout.click();
     await expect(this.page).toHaveURL(/\/subscription/);

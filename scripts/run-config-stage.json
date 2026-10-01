@@ -1,8 +1,13 @@
+
 {
   "specs": ["tests/e2e/ShopEnroll/1-enroll-brand-partner-by-market.spec.ts",
-            "tests/e2e/ShopEnroll/2-enroll-suscription-customer-by-market.spec.ts",
-            "tests/e2e/ShopEnroll/3-enroll-suscription-retail-customer-by-market.spec.ts"
-          ],
-  "markets": ["United States"],
-  "cases": ["CP-083", "CP-092", "CP-101"]
+            "tests/e2e/ShopEnroll/2-enroll-suscription-customer-by-market.spec.ts" ,
+            "tests/e2e/ShopEnroll/2-enroll-suscription-retail-customer-by-market.spec.ts",
+            "tests/e2e/SHOP SUSCRIPTIONS/auth-suscription-by-market.spec.ts",
+            "tests/e2e/SHOP SUSCRIPTIONS/auth-suscription-order-by-market.spec.ts" 
+
+            ],
+            
+  "markets": ["United States", "Germany", "Mexico", "Hong Kong", "Taiwan", "Australia"],
+  "cases": []
 }

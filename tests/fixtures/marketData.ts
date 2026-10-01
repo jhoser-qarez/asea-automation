@@ -5,6 +5,10 @@ import {
   CroatiaLabels,
   hongKongLabels,
   defaultLabels,
+  spanishLabels,
+  hungarianLabels,
+  britishLabels,
+  spainLabels,
 } from "./marketLabels";
 import { PaymentMethodPreference } from "../pages/CheckoutPageEuropean";
 import { NationalIdFormat } from "./enrollData";
@@ -16,14 +20,17 @@ export interface MarketAddress {
   state?: string; // opcional - algunos mercados no tienen estado (ej: Germany)
   zip?: string; // opcional - algunos mercados no tienen código postal (ej: Hong Kong)
 
-  // ⚠️ Exclusivos de Taiwan (confirmado requerido en la práctica, aunque sin
-  // asterisco visible) — ningún otro mercado los tiene (ej. Hong Kong).
+  // ⚠️ Exclusivos de Taiwan
   gender?: "male" | "female";
   bankAccountName?: string;
   bankName?: string;
   bankCity?: string;
   bankCode?: string;
   nationalId?: string;
+
+  // ⚠️ Exclusivos de México
+  colonia?: string;
+  municipio?: string;
 }
 
 export interface MarketBasicInfo {
@@ -63,6 +70,9 @@ export interface MarketConfig {
   retailProduct?: { name: string };
 
   nationalIdFormat?: NationalIdFormat;
+
+  // ⚠️ Exclusivo de México
+  accountType?: "Individual" | "Business";
 }
 
 export const markets: MarketConfig[] = [
@@ -96,6 +106,104 @@ export const markets: MarketConfig[] = [
     paymentMethod: "adyen",
     enrollPack: { name: "Essentials-Registrierungspaket" },
     enrollBundle: { name: "Deluxe-Essentials-Abo-Paket" },
+    retailProduct: { name: "ASEA® VIA™ Biome" },
+  },
+  ///////////////////////----HUNGRÍA----////////////////////////////
+  {
+    marketName: "Hungary",
+    languageOption: "Hungary (Magyar)",
+    checkoutVariant: "european",
+    product: {
+      name: "1 karton ASEA (4 palack)",
+    },
+    address: {
+      address1: "Fő utca 1",
+      city: "Budapest",
+      zip: "1011",
+    },
+    basic: {
+      email: "jhoserjuarez86480065@test.com",
+      firstName: "Jhoser",
+      lastName: "TestEnroll",
+      phone: "301234567",
+    },
+    card: {
+      name: "Test HU Account",
+      number: "4111111111111111",
+      expMonth: "03",
+      expYear: "30",
+      cvv: "737",
+    },
+    labels: hungarianLabels,
+    paymentMethod: "adyen",
+    enrollPack: { name: "Essentials belépési csomag" },
+    enrollBundle: { name: "Deluxe Essentials előfizetési csomag" },
+    retailProduct: { name: "ASEA® VIA™ Biome" },
+  },
+  ///////////////////////----REINO UNIDO----////////////////////////////
+  {
+    marketName: "United Kingdom",
+    languageOption: "United Kingdom (English)",
+    checkoutVariant: "european",
+    product: {
+      name: "1 Case ASEA (4 Bottles)",
+    },
+    address: {
+      address1: "10 Downing Street",
+      city: "London",
+      state: "London", // ✅ confirmado en la lista real de condados ("Greater London" no existe ahí)
+      zip: "SW1A 2AA",
+    },
+    basic: {
+      email: "jhoserjuarez86480066@test.com",
+      firstName: "Jhoser",
+      lastName: "TestEnroll",
+      phone: "7911123456",
+    },
+    card: {
+      name: "Test UK Account",
+      number: "4111111111111111",
+      expMonth: "03",
+      expYear: "30",
+      cvv: "737",
+    },
+    labels: britishLabels,
+    paymentMethod: "adyen",
+    enrollPack: { name: "ASEA Start Enrollment Pack" },
+    enrollBundle: { name: "Deluxe Essentials Subscription Bundle" },
+    retailProduct: { name: "ASEA® VIA™ Biome" },
+  },
+  ///////////////////////----ESPAÑA----////////////////////////////
+  {
+    marketName: "Spain",
+    languageOption: "Spain (Español)",
+    checkoutVariant: "european",
+    product: {
+      name: "1 caja de ASEA (4 botellas)",
+    },
+    address: {
+      address1: "Calle Mayor 1",
+      city: "Madrid",
+      state: "Madrid", // ✅ confirmado en la lista real de provincias
+      zip: "28013",
+    },
+    basic: {
+      email: "jhoserjuarez86480067@test.com",
+      firstName: "Jhoser",
+      lastName: "TestEnroll",
+      phone: "612345678",
+    },
+    card: {
+      name: "Test ES Account",
+      number: "4111111111111111",
+      expMonth: "03",
+      expYear: "30",
+      cvv: "737",
+    },
+    labels: spainLabels,
+    paymentMethod: "adyen",
+    enrollPack: { name: "Paquete de inscripción Essentials" },
+    enrollBundle: { name: "Paquete de suscripción Deluxe Essentials" },
     retailProduct: { name: "ASEA® VIA™ Biome" },
   },
   ///////////////////////----AUSTRIA----////////////////////////////
@@ -195,7 +303,7 @@ export const markets: MarketConfig[] = [
     languageOption: "Hong Kong (中文)", //"Hong Kong (繁體中文)"
     checkoutVariant: "asia",
 
-    product: { name: "6個月/24週自動續購信號分子水組合" },
+    product: { name: "RENU28™ 活膚凝膠" },
     address: {
       address1: "Test Address 1",
       address2: "Flat 1",
@@ -218,7 +326,7 @@ export const markets: MarketConfig[] = [
     paymentMethod: "adyen",
     enrollPack: { name: "個人基本組合" },
     enrollBundle: { name: "基本自動續購組合" },
-    retailProduct: { name: "RENUAdvanced™ 亮采保濕霜" },
+    retailProduct: { name: "RENU28™ 活膚凝膠" },
   },
 
   {
@@ -226,7 +334,7 @@ export const markets: MarketConfig[] = [
     languageOption: "Taiwan (中文)",
     checkoutVariant: "asia",
 
-    product: { name: "6個月/24週自動續購組合" },
+    product: { name: "RENUAdvanced™ 亮采保濕霜" },
     address: {
       address1: "Test Address 1",
 
@@ -248,7 +356,7 @@ export const markets: MarketConfig[] = [
       lastName: "Juarez",
     },
     card: {
-      name: "Test US Account",
+      name: "Test HK Account",
       number: "5454545454545454",
       expMonth: "03",
       expYear: "2030",
@@ -259,6 +367,10 @@ export const markets: MarketConfig[] = [
     //paymentMethod: "adyen",
     enrollPack: { name: "個人基本組合" },
     enrollBundle: { name: "基本自動續購組合" },
+    // ⚠️ Mismo motivo que Hong Kong: en el spec combinado (Today's Order +
+    // Suscripción), usar un producto de retail distinto al de suscripción
+    // dejaba el modal del carrito permanentemente oculto al agregar el
+    // segundo ítem — se usa el mismo producto en ambas secciones.
     retailProduct: { name: "RENUAdvanced™ 亮采保濕霜" },
   },
 
@@ -334,12 +446,7 @@ export const markets: MarketConfig[] = [
   },
 
   ///////////////////////----ESTADOS UNIDOS----////////////////////////////
-  // ✅ checkoutVariant "standard": cae en la rama "else" de los specs
-  // by-market (EnrollCheckoutPage tal cual, sin overrides) — el mismo
-  // flujo que ya usaban los specs originales sin sufijo "-by-market"
-  // (enroll-brand-partner.spec.ts, etc.), de donde se reusan estos datos
-  // ya validados (enrollmentSelection de productData.ts, address/card de
-  // userInfo/userInfoLive en userData.ts).
+
   {
     marketName: "United States",
     languageOption: "United States (English)",
@@ -373,12 +480,7 @@ export const markets: MarketConfig[] = [
   },
 
   ///////////////////////----CANADÁ----////////////////////////////
-  // ✅ checkoutVariant "standard" — mismo flujo base que USA. Confirmado
-  // por el usuario: Step 3 de Brand Partner NO tiene campo de teléfono ni
-  // código de país (EnrollStep3Page.fillBasicInfo() ya lo maneja de forma
-  // defensiva); el código postal usa el formato canadiense "A#A #A#"; los
-  // métodos de pago son solo "Credit Card - TEST" (Braintree) y PayPal —
-  // sin Adyen ni GPay.
+
   {
     marketName: "Canada",
     languageOption: "Canada (English)",
@@ -407,6 +509,76 @@ export const markets: MarketConfig[] = [
     labels: defaultLabels,
 
     enrollPack: { name: "Entrepreneur Essentials Enrollment Pack" },
+    enrollBundle: { name: "Deluxe Essentials Subscription Bundle" },
+    retailProduct: { name: "REDOXGold™ Massage + Soothing Gel" },
+  },
+
+  ///////////////////////----MÉXICO----////////////////////////////
+
+  {
+    marketName: "Mexico",
+    languageOption: "Mexico (Español)",
+    checkoutVariant: "standard",
+
+    product: { name: "Paquete de suscripción Deluxe Essentials" },
+    address: {
+      address1: "Test Address 1",
+      colonia: "Roma Norte",
+      municipio: "Cuauhtémoc",
+      city: "Ciudad de México",
+      state: "Distrito Federal",
+      zip: "06700",
+    },
+    basic: {
+      email: "jhoserjuarez86952811@test.com",
+      firstName: "Jhoser",
+      lastName: "TestEnroll",
+    },
+    card: {
+      name: "Test MX Account",
+      number: "5454545454545454",
+      expMonth: "03",
+      expYear: "2030",
+      cvv: "123",
+    },
+    labels: spanishLabels,
+    accountType: "Individual",
+
+    enrollPack: { name: "Paquete de inscripción Essentials" },
+    enrollBundle: { name: "Paquete de suscripción Deluxe Essentials" },
+    retailProduct: { name: "Suero Luminoso de RENUAdvanced™" },
+  },
+
+  ///////////////////////----AUSTRALIA----////////////////////////////
+
+  {
+    marketName: "Australia",
+    languageOption: "Australia (English)",
+    checkoutVariant: "standard",
+
+    product: { name: "Deluxe Essentials Subscription Bundle" },
+    address: {
+      address1: "Test Address 1",
+      city: "Sydney",
+      state: "New South Wales",
+      zip: "2000",
+    },
+    basic: {
+      email: "jhoserjuarez86952812@test.com",
+      firstName: "Jhoser",
+      lastName: "TestEnroll",
+    },
+
+    card: {
+      name: "Test AU Account",
+      number: "4111111111111111",
+      expMonth: "03",
+      expYear: "30",
+      cvv: "737",
+    },
+    labels: defaultLabels,
+
+    enrollPack: { name: "Essentials Enrolment Pack" },
     enrollBundle: { name: "Deluxe Essentials Subscription Bundle" },
     retailProduct: { name: "REDOXGold™ Massage + Soothing Gel" },
   },

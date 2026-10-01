@@ -6,6 +6,8 @@ export class ProductDetailPage {
   // 🎯 Locators
   readonly checkboxCart: Locator;
   readonly checkboxSubscription: Locator;
+  readonly labelCheckboxCart: Locator;
+  readonly labelCheckboxSubscription: Locator;
   readonly btnPlus: Locator;
   readonly btnMinus: Locator;
   readonly inputQuantity: Locator;
@@ -14,10 +16,18 @@ export class ProductDetailPage {
   constructor(page: Page) {
     this.page = page;
 
-    // ✅ Por id (únicos en la página)
-    this.checkboxCart = page.locator('[data-test="one-time-checkbox"]');
+    this.checkboxCart = page.locator(
+      '[data-test="one-time-checkbox"] input[type="checkbox"]',
+    );
     this.checkboxSubscription = page.locator(
-      '[data-test="subscribe-checkbox"]',
+      '[data-test="subscribe-checkbox"] input[type="checkbox"]',
+    );
+
+    this.labelCheckboxCart = page.locator(
+      '[data-test="one-time-checkbox"] label:has(input[type="checkbox"])',
+    );
+    this.labelCheckboxSubscription = page.locator(
+      '[data-test="subscribe-checkbox"] label:has(input[type="checkbox"])',
     );
 
     const productDetail = page
@@ -39,6 +49,8 @@ export class ProductDetailPage {
   async verifyPageLoaded() {
     await expect(this.btnAddToCart).toBeVisible();
     await expect(this.inputQuantity).toBeVisible();
+
+    await this.page.waitForTimeout(800);
   }
 
   private async isEventuallyPresent(
@@ -53,13 +65,14 @@ export class ProductDetailPage {
 
   private async setCheckboxState(
     checkbox: Locator,
+    clickTarget: Locator,
     want: boolean,
     label: string,
   ) {
     for (let attempt = 0; attempt < 4; attempt++) {
       const isChecked = await checkbox.isChecked().catch(() => false);
       if (isChecked === want) return;
-      await checkbox.click({ force: true });
+      await clickTarget.click({ force: true });
       await this.page.waitForTimeout(300);
     }
 
@@ -78,6 +91,7 @@ export class ProductDetailPage {
     if (await this.isEventuallyPresent(this.checkboxCart)) {
       await this.setCheckboxState(
         this.checkboxCart,
+        this.labelCheckboxCart,
         wantCartChecked,
         "one-time",
       );
@@ -90,6 +104,7 @@ export class ProductDetailPage {
     if (await this.isEventuallyPresent(this.checkboxSubscription)) {
       await this.setCheckboxState(
         this.checkboxSubscription,
+        this.labelCheckboxSubscription,
         wantSubscriptionChecked,
         "subscribe",
       );
@@ -102,6 +117,7 @@ export class ProductDetailPage {
     if (await this.isEventuallyPresent(this.checkboxCart)) {
       await this.setCheckboxState(
         this.checkboxCart,
+        this.labelCheckboxCart,
         wantCartChecked,
         "one-time",
       );
@@ -109,6 +125,7 @@ export class ProductDetailPage {
     if (await this.isEventuallyPresent(this.checkboxSubscription)) {
       await this.setCheckboxState(
         this.checkboxSubscription,
+        this.labelCheckboxSubscription,
         wantSubscriptionChecked,
         "subscribe",
       );

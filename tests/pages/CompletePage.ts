@@ -1,6 +1,10 @@
 import { Page, Locator, expect } from "@playwright/test";
 import { MarketLabels, defaultLabels } from "../fixtures/marketLabels";
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export class CompletePage {
   readonly page: Page;
   readonly labels: MarketLabels;
@@ -8,6 +12,7 @@ export class CompletePage {
   // 🎯 Confirmación
   readonly confirmationMessage: Locator;
   readonly orderNumber: Locator;
+  readonly subscriptionOrderNumber: Locator;
   readonly orderDate: Locator;
   readonly downloadReceiptLink: Locator;
 
@@ -28,7 +33,10 @@ export class CompletePage {
 
     this.confirmationMessage = page
       .locator("div", {
-        hasText: labels.orderReceived,
+        hasText: new RegExp(
+          `${escapeRegExp(labels.orderReceived)}|${escapeRegExp(defaultLabels.orderReceived)}`,
+          "i",
+        ),
       })
       .last();
 
@@ -41,6 +49,14 @@ export class CompletePage {
     this.orderDate = orderSummaryBox
       .locator(".col-span-6.text-right > div")
       .nth(1);
+
+    this.subscriptionOrderNumber = page
+      .locator("div.bg-gray-200", {
+        hasText:
+          /Order Number|Subscription number|Bestellnummer|Abonnementnummer|Número de suscripción|Előfizetési szám|订阅号/i,
+      })
+      .locator(".col-span-6.text-right > div")
+      .first();
 
     this.downloadReceiptLink = page.locator("a", {
       hasText: labels.downloadReceipt,
@@ -85,6 +101,16 @@ export class CompletePage {
     return orderNum?.trim();
   }
 
+  // ✅ Verificar número de suscripción (carrito solo de suscripción, sin
+  // "Order Number" — ver subscriptionOrderNumber)
+  async verifySubscriptionOrderNumber() {
+    await expect(this.subscriptionOrderNumber).toBeVisible();
+    const num = await this.subscriptionOrderNumber.textContent();
+    expect(num?.trim()).toBeTruthy();
+    console.log(`✅ Orden generada: ${num?.trim()}`);
+    return num?.trim();
+  }
+
   // ✅ Verificar fecha de orden
   async verifyOrderDate() {
     await expect(this.orderDate).toBeVisible();
@@ -109,6 +135,15 @@ export class CompletePage {
     await expect(this.downloadReceiptLink).toHaveAttribute("href", /office/);
   }
 
+  private normalizeAmount(value: string): string {
+    const cleaned = value.replace(/[^\d.,]/g, "");
+    const match = cleaned.match(/^(.*)[.,](\d{2})$/);
+    if (match) {
+      return `${match[1].replace(/[.,]/g, "")}.${match[2]}`;
+    }
+    return `${cleaned.replace(/[.,]/g, "")}.00`;
+  }
+
   // ✅ Verificar order total (solo si existe)
   async verifyOrderTotal(expectedTotal: string) {
     if (!expectedTotal) {
@@ -117,7 +152,9 @@ export class CompletePage {
     }
     const orderTotal = await this.orderTotalAmount.textContent();
     console.log(`💰 Order Total en complete: ${orderTotal?.trim()}`);
-    await expect(this.orderTotalAmount).toContainText(expectedTotal);
+    expect(this.normalizeAmount(orderTotal ?? "")).toContain(
+      this.normalizeAmount(expectedTotal),
+    );
   }
 
   // ✅ Verificar subscription total (solo si existe)
@@ -130,7 +167,9 @@ export class CompletePage {
     console.log(
       `💰 Subscription Total en complete: ${subscriptionTotal?.trim()}`,
     );
-    await expect(this.subscriptionTotalAmount).toContainText(expectedTotal);
+    expect(this.normalizeAmount(subscriptionTotal ?? "")).toContain(
+      this.normalizeAmount(expectedTotal),
+    );
   }
 
   // ✅ Verificación completa incluyendo totales
@@ -159,7 +198,7 @@ export class CompletePage {
   ) {
     await this.verifyPageLoaded();
     await this.verifyConfirmationMessage(firstName);
-    await this.verifyOrderNumber();
+    await this.verifySubscriptionOrderNumber();
     //await this.verifyOrderDate();
     //await this.verifyDownloadReceiptLink();
     //await this.verifyOrderTotal(totals.orderTotal);

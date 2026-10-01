@@ -11,8 +11,19 @@ import { CompletePage } from "../../pages/CompletePage";
 import { getMarketsToRun } from "../../utils/marketFilter";
 import { ProjectMetadata, getConfig } from "../../utils/testConfig";
 
+// ⚠️ Productos distintos por sección: el producto de suscripción configurado
+// por mercado (market.product) puede ser solo-suscripción (sin opción de
+// compra única) — confirmado con evidencia real (México: "Paquete de
+// suscripción Deluxe Essentials" no tiene checkbox "one-time", el botón
+// Agregar quedaba deshabilitado para siempre). Se usa el producto de retail
+// ya configurado por mercado (market.retailProduct) para Today's Order, y
+// market.product para la Suscripción — mismo criterio que la variante
+// "diferentes productos" del spec original (auth-subscription-order-
+// checkout.spec.ts), aplicado por mercado.
 for (const market of getMarketsToRun()) {
-  test.describe(`Orden Solo Suscripción con Dist Logueado - ${market.marketName}`, () => {
+  const todayOrderProduct = market.retailProduct ?? market.product;
+
+  test.describe(`Orden con Today Order + Suscripción con Dist Logueado - ${market.marketName}`, () => {
     test(`Flujo completo: ${market.marketName}`, async ({ page }) => {
       const project = test.info().project;
       const config = getConfig(
@@ -31,7 +42,6 @@ for (const market of getMarketsToRun()) {
       const completePage = new CompletePage(page, market.labels);
 
       // PASO 1: Login
-
       await test.step("Login", async () => {
         await loginPage.gotoByEnv(
           config.env as "stage" | "live",
@@ -42,44 +52,63 @@ for (const market of getMarketsToRun()) {
       });
 
       // PASO 2: Cambiar mercado e idioma
-
       if (market.marketName !== "United States") {
         await test.step(`Cambiar a ${market.marketName}`, async () => {
           await marketSelectorPage.changeMarket(market.marketName);
         });
       }
 
-      // PASO 3: Seleccionar producto
-      await test.step("Seleccionar producto", async () => {
+      // PASO 3: Seleccionar producto para Today's Order
+      await test.step("Seleccionar producto para Today's Order", async () => {
         await productsPage.gotoByEnv(
           config.env as "stage" | "live",
           config.voPort,
         );
         await productsPage.verifyPageLoaded();
+        await productsPage.selectProductByName(todayOrderProduct.name);
+        await expect(page).toHaveURL(/\/products\/\d+/);
+      });
+
+      // PASO 4: Agregar a Today's Order
+      await test.step("Agregar a Today's Order", async () => {
+        await productDetailPage.addProductToCart("cart", 1);
+      });
+
+      // PASO 5: Verificar modal y continuar comprando
+      await test.step("Verificar modal y continuar comprando", async () => {
+        await cartModalPage.verifyModalVisible();
+        await cartModalPage.verifyProductInCart(todayOrderProduct.name);
+        await cartModalPage.continueShopping();
+        await expect(page).toHaveURL(/\/products/);
+      });
+
+      // PASO 6: Seleccionar producto para Suscripción
+      await test.step("Seleccionar producto para Suscripción", async () => {
+        await productsPage.verifyPageLoaded();
         await productsPage.selectProductByName(market.product.name);
         await expect(page).toHaveURL(/\/products\/\d+/);
       });
 
-      // PASO 4: Agregar a Suscripción
-      await test.step("Agregar al carrito como suscripción", async () => {
+      // PASO 7: Agregar a Suscripción
+      await test.step("Agregar a Suscripción", async () => {
         await productDetailPage.addProductToCart("subscription", 1);
       });
 
-      // PASO 5: Verificar modal y proceder
-      await test.step("Verificar modal del carrito", async () => {
+      // PASO 8: Verificar modal con ambos productos → Checkout
+      await test.step("Verificar modal con ambos productos", async () => {
         await cartModalPage.verifyModalVisible();
+        await cartModalPage.verifyProductInCart(todayOrderProduct.name);
         await cartModalPage.verifyProductInSubscription(market.product.name);
         await cartModalPage.proceedToCheckout();
       });
 
-      // PASO 6: Página Info
+      // PASO 9: Página Info
       await test.step("Llenar información y dirección", async () => {
         await infoPage.verifyPageLoaded();
-
         await infoPage.completeInfoPage(market.address, config.info.basic);
       });
 
-      //  PASO 7: Checkout
+      // PASO 10: Checkout
       let totals: { orderTotal: string; subscriptionTotal: string } = {
         orderTotal: "",
         subscriptionTotal: "",
@@ -91,15 +120,13 @@ for (const market of getMarketsToRun()) {
             market.paymentMethod,
           );
         } else {
-          totals = await checkoutPage.completeCheckoutOnlySuscriptionType(
-            market.card,
-          );
+          totals = await checkoutPage.completeCheckout(market.card);
         }
       });
 
-      //  PASO 8: Confirmación
-      await test.step("Verificar confirmación", async () => {
-        await completePage.verifyCompleteSuscripcion(
+      // PASO 11: Confirmación
+      await test.step("Verificar confirmación de orden", async () => {
+        await completePage.verifyCompleteOrder(
           config.info.basic.firstName,
           totals,
         );

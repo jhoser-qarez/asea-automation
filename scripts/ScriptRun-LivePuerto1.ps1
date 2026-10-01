@@ -29,10 +29,16 @@ $argsList = @()
 $argsList += $specs
 $argsList += "--project=$projectName"
 
+# ✅ Carpeta de reporte única por corrida — nunca se sobrescribe la anterior,
+# así se puede guardar/compartir el historial de reportes con el equipo.
+$timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+$env:REPORT_DIR = "playwright-report/$projectName-$timestamp"
+
 Write-Host "Entorno: $projectName"
 Write-Host "MARKETS=$($env:MARKETS)"
 Write-Host "CASES=$($env:CASES)"
 Write-Host "Comando: npx playwright test $($argsList -join ' ')"
+Write-Host "Reporte: $($env:REPORT_DIR)"
 
 # ⚠️ npx (y Node) pueden escribir warnings inofensivos a stderr (ej. "NO_COLOR
 # ignored due to FORCE_COLOR"). Con $ErrorActionPreference = "Stop" a nivel de
@@ -44,5 +50,9 @@ $ErrorActionPreference = "Continue"
 npx playwright test @argsList
 $testExitCode = $LASTEXITCODE
 $ErrorActionPreference = "Stop"
+
+Write-Host ""
+Write-Host "Reporte guardado en: $($env:REPORT_DIR)"
+Write-Host "Para verlo: npx playwright show-report `"$($env:REPORT_DIR)`""
 
 exit $testExitCode

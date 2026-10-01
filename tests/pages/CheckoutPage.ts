@@ -1,9 +1,14 @@
-import { Page, Locator, expect } from "@playwright/test";
+import { Page, Locator, FrameLocator, expect } from "@playwright/test";
 import { MarketLabels, defaultLabels } from "../fixtures/marketLabels";
 
 export class CheckoutPage {
   readonly page: Page;
   readonly labels: MarketLabels;
+
+  // 🎯 Adyen ("Alternative Payments")
+  readonly radioAdyenProvider: Locator;
+  readonly inputHolderName: Locator;
+  protected usingAdyenIframe = false;
 
   // 🎯 TODAY'S ORDER - Payment Methods
   readonly radioCartCreditCard: Locator; // para verificar estado
@@ -50,8 +55,9 @@ export class CheckoutPage {
     );
 
     // ✅ Fila visible del método de pago
+
     this.rowCreditCard = page
-      .locator('[data-test="checkout-payment-method-radio"]')
+      .locator(".border-l.border-b.border-r")
       .filter({ hasText: labels.creditCard })
       .first();
 
@@ -134,6 +140,28 @@ export class CheckoutPage {
     this.btnBackToInformation = page.getByRole("button", {
       name: labels.backToInformation,
     });
+
+    // ✅ Adyen
+    this.radioAdyenProvider = page.locator(
+      'input[type="radio"][value="Adyen"]',
+    );
+    this.inputHolderName = page.locator('input[name="holderName"]');
+  }
+
+  protected cardNumberFrame(): FrameLocator {
+    return this.page.frameLocator(
+      'span[data-cse="encryptedCardNumber"] iframe',
+    );
+  }
+  protected cardExpiryFrame(): FrameLocator {
+    return this.page.frameLocator(
+      'span[data-cse="encryptedExpiryDate"] iframe',
+    );
+  }
+  protected cardCvvFrame(): FrameLocator {
+    return this.page.frameLocator(
+      'span[data-cse="encryptedSecurityCode"] iframe',
+    );
   }
 
   // ✅ Verificar que estamos en /checkout y todo cargó
@@ -145,28 +173,93 @@ export class CheckoutPage {
     await this.page.waitForLoadState("networkidle", { timeout: 60000 });
 
     // 3. Esperar contenedor principal
-    await expect(
-      this.page.locator('[data-test="checkout-payment-method"]'),
-    ).toBeVisible({
+
+    await expect(this.page.locator('[role="radiogroup"]').first()).toBeVisible({
       timeout: 30000,
     });
 
     // 4. ✅ Buscar la FILA visible, no el input oculto
-    await expect(this.rowCreditCard).toBeVisible({ timeout: 30000 });
+
+    const creditCardRowVisible = await this.rowCreditCard
+      .waitFor({ state: "visible", timeout: 30000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!creditCardRowVisible) {
+      await expect(this.radioAdyenProvider).toBeAttached({ timeout: 5000 });
+    }
   }
 
   // ✅ Seleccionar Credit Card para TODAY'S ORDER
-  async selectCreditCardPayment() {
-    // ✅ evaluate lee el DOM sin esperar visibilidad
-    const isChecked = await this.page.evaluate(() => {
-      const input = document.querySelector(
-        '[data-test="cart-billing-method-0"]',
-      );
-      return input?.getAttribute("aria-checked");
-    });
 
-    if (isChecked !== "true") {
-      await this.rowCreditCard.click();
+  async selectCreditCardPayment() {
+    const adyenPresent = await this.radioAdyenProvider
+      .waitFor({ state: "attached", timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+
+    let adyenIsDefault = false;
+    if (adyenPresent) {
+      const deadline = Date.now() + 12000;
+      while (Date.now() < deadline) {
+        adyenIsDefault = await this.radioAdyenProvider
+          .isChecked()
+          .catch(() => false);
+        if (adyenIsDefault) break;
+        await this.page.waitForTimeout(500);
+      }
+    }
+
+    if (adyenIsDefault) {
+      await expect(
+        this.cardNumberFrame().locator(
+          'input[data-fieldtype="encryptedCardNumber"]',
+        ),
+      ).toBeVisible({ timeout: 30000 });
+      this.usingAdyenIframe = true;
+      console.log("✅ Adyen seleccionado");
+      return;
+    }
+
+    this.usingAdyenIframe = false;
+
+    // ⚠️ Confirmado con evidencia real: cuando el checkout tiene Today's
+    // Order + Suscripción a la vez, cada sección trae su PROPIO radio group
+    // de pago (2 inputs value="Braintree" en el DOM, uno por sección) — se
+    // escopa a la primera (Today's Order, la que maneja este método; la de
+    // Suscripción se resuelve aparte vía verifySubscriptionSamePayment()).
+    // ⚠️ Confirmado con evidencia real (Taiwan, RENUAdvanced): la fila de
+    // Today's Order puede venir por defecto en la variante "Credit Card -
+    // TEST 3ds" (desafío 3D-Secure real) — un intento anterior de "evitarla"
+    // terminó clickeando el radio de la sección de Suscripción por error (el
+    // único "no-3ds" en el DOM pertenece a ESA sección, no a Today's Order).
+    // La fila 3ds de Today's Order es la correcta para esa sección — se deja
+    // el default tal cual y el desafío se resuelve en placeOrder() vía
+    // handle3dsChallenge().
+    const radioBraintree = this.page
+      .locator('input[type="radio"][value="Braintree"]')
+      .first();
+    const braintreePresent = (await radioBraintree.count()) > 0;
+
+    if (braintreePresent) {
+      const isBraintreeChecked = await radioBraintree
+        .isChecked()
+        .catch(() => false);
+      if (!isBraintreeChecked) {
+        const id = await radioBraintree.getAttribute("id");
+        await this.page.locator(`label[for="${id}"]`).first().click();
+        console.log("✅ Braintree (Credit Card) seleccionado explícitamente");
+      }
+    } else {
+      const isChecked = await this.page.evaluate(() => {
+        const input = document.querySelector(
+          '[data-test="cart-billing-method-0"]',
+        );
+        return input?.getAttribute("aria-checked");
+      });
+
+      if (isChecked !== "true") {
+        await this.rowCreditCard.click();
+      }
     }
 
     await expect(this.inputCardName).toBeVisible({ timeout: 10000 });
@@ -180,20 +273,17 @@ export class CheckoutPage {
     expYear: string;
     cvv: string;
   }) {
+    if (this.usingAdyenIframe) {
+      await this.fillCardDetailsAdyen(card);
+      return;
+    }
+
     await this.inputCardName.clear();
     await this.inputCardName.pressSequentially(card.name, { delay: 100 });
 
     await this.inputCardNumber.clear();
     await this.inputCardNumber.pressSequentially(card.number, { delay: 100 });
 
-    // ⚠️ Confirmado con Discover en Canadá: la detección de marca de tarjeta
-    // (iconos Mastercard/Visa/Discover/etc.) puede correr una validación
-    // async que roba el foco de vuelta al campo de número justo después de
-    // escribirlo — si se empieza a escribir el vencimiento demasiado rápido,
-    // el campo queda vacío sin ningún error visible (mismo patrón ya
-    // confirmado y arreglado para Adyen en CheckoutPageEuropean). Se agrega
-    // el mismo margen + re-click + verificación de valor acá, en el
-    // formulario plano compartido por todos los proveedores Braintree.
     await this.page.waitForTimeout(500);
     await this.inputExpMonth.click();
     await this.inputExpMonth.clear();
@@ -215,6 +305,61 @@ export class CheckoutPage {
     await this.inputCVV.clear();
     await this.inputCVV.pressSequentially(card.cvv, { delay: 100 });
     await expect(this.inputCVV).toHaveValue(card.cvv, { timeout: 5000 });
+  }
+
+  // ✅ Rama Adyen (dropin embebido en iframes)
+  private async fillCardDetailsAdyen(card: {
+    name: string;
+    number: string;
+    expMonth: string;
+    expYear: string;
+    cvv: string;
+  }) {
+    const expiry = `${card.expMonth}/${card.expYear.slice(-2)}`;
+
+    const numberInput = this.cardNumberFrame().locator(
+      'input[data-fieldtype="encryptedCardNumber"]',
+    );
+    const expiryInput = this.cardExpiryFrame().locator(
+      'input[data-fieldtype="encryptedExpiryDate"]',
+    );
+    const cvvInput = this.cardCvvFrame().locator(
+      'input[data-fieldtype="encryptedSecurityCode"]',
+    );
+
+    await numberInput.pressSequentially(card.number, { delay: 100 });
+    await this.page.waitForTimeout(300);
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const rawValue = (await numberInput.inputValue().catch(() => "")).replace(
+        /\s/g,
+        "",
+      );
+      if (rawValue.length >= card.number.length) break;
+      console.log(
+        `⚠️ Número de tarjeta incompleto en el campo (Adyen: "${rawValue}"), reintentando (${attempt}/3)...`,
+      );
+      await numberInput.click();
+      await this.page.keyboard.press("Control+A");
+      await this.page.keyboard.press("Backspace");
+      await numberInput.pressSequentially(card.number, { delay: 150 });
+      await this.page.waitForTimeout(300);
+    }
+
+    await this.page.waitForTimeout(500);
+    await expiryInput.click();
+    await expiryInput.pressSequentially(expiry, { delay: 100 });
+    await expect(expiryInput).toHaveValue(expiry, { timeout: 5000 });
+
+    await this.page.waitForTimeout(500);
+    await cvvInput.click();
+    await cvvInput.pressSequentially(card.cvv, { delay: 100 });
+    await expect(cvvInput).toHaveValue(card.cvv, { timeout: 5000 });
+
+    await this.inputHolderName.click();
+    await this.inputHolderName.pressSequentially(card.name, { delay: 100 });
+
+    console.log("✅ Datos de tarjeta llenados (Adyen)");
   }
 
   // ✅ Billing Address TODAY'S ORDER
@@ -252,7 +397,20 @@ export class CheckoutPage {
 
   // ✅ Subscription: usar mismo método de pago
   // Por defecto ya viene "Same as Cart Billing" marcado
+
   async verifySubscriptionSamePayment() {
+    const present = await this.labelBoxSameAsCart
+      .waitFor({ state: "visible", timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!present) {
+      console.log(
+        "⏭️ Sin opción 'Same as Your Cart Billing Method' (carrito solo de suscripción)",
+      );
+      return;
+    }
+
     // ✅ evaluate en lugar de getAttribute
     const isChecked = await this.page.evaluate(() => {
       const input = document.querySelector(
@@ -267,7 +425,19 @@ export class CheckoutPage {
   }
 
   // ✅ Marcar checkbox personal consumption
+
   async checkPersonalConsumption() {
+    const present = await this.checkboxPersonalConsumption
+      .waitFor({ state: "attached", timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!present) {
+      console.log(
+        "⏭️ Sin checkbox de personal consumption en este mercado (no aplica)",
+      );
+      return;
+    }
+
     // ✅ Checkbox nativo: leer estado con isChecked(), no aria-checked
     const isChecked = await this.checkboxPersonalConsumption.isChecked();
 
@@ -312,9 +482,49 @@ export class CheckoutPage {
   }
 
   // ✅ Hacer checkout final
+  // ⚠️ Confirmado con evidencia real (Taiwan, RENUAdvanced): algunos
+  // productos/cuentas quedan por defecto en una variante "3ds" de Braintree
+  // que dispara un desafío 3D-Secure real — sin manejarlo, el checkout se
+  // queda colgado en /checkout para siempre. Se detecta automáticamente
+  // (sin necesitar saber de antemano si aplica) y se resuelve con la misma
+  // lógica ya probada en EnrollCheckoutPage.handle3dsChallenge().
   async placeOrder() {
     await this.btnCheckout.click();
-    await expect(this.page).toHaveURL(/\/complete/, { timeout: 30000 });
+    await this.handle3dsChallenge();
+    await expect(this.page).toHaveURL(/\/complete/, { timeout: 60000 });
+  }
+
+  // ✅ Challenge 3DS — detecta si aparece (en cualquier iframe) y lo
+  // resuelve; si no aparece en el margen corto, no bloquea el flujo normal.
+  protected async handle3dsChallenge(): Promise<boolean> {
+    const inputSel = '#password-input, input[name="answer"]';
+    const deadline = Date.now() + 10000;
+    let target: import("@playwright/test").Frame | undefined;
+    while (Date.now() < deadline && !target) {
+      if (/\/complete/.test(this.page.url())) return false;
+      for (const f of this.page.frames()) {
+        const visible = await f
+          .locator(inputSel)
+          .first()
+          .isVisible()
+          .catch(() => false);
+        if (visible) {
+          target = f;
+          break;
+        }
+      }
+      if (!target) await this.page.waitForTimeout(500);
+    }
+    if (!target) return false;
+
+    console.log(`🔐 Challenge 3DS (iframe): ${target.url()}`);
+    await target.locator(inputSel).first().fill("password");
+    await target
+      .locator('#buttonSubmit, button[type="submit"]')
+      .first()
+      .click();
+    console.log('✅ 3DS challenge: "password" + Continue');
+    return true;
   }
 
   // ✅ Capturar order total (opcional, puede no existir)

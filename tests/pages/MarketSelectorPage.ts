@@ -55,7 +55,32 @@ export class MarketSelectorPage {
     await this.autocompleteMarketSearch.fill(marketName);
 
     await expect(this.btnYes).toBeEnabled({ timeout: 10000 });
-    await this.btnYes.click();
+
+    // ⚠️ Confirmado con evidencia real (tráfico de red durante un cambio de
+    // mercado en Shop): la UI se actualiza (idioma, bandera) antes de que el
+    // backend persista el cambio — la llamada real que lo confirma es este
+    // PUT a .../ShoppingCart/{id}/MarketId. Esperar solo "networkidle"
+    // (heurística genérica) podía dejar avanzar el flujo con el mercado
+    // aún NO persistido en el servidor, causando errores como "REGION NOT
+    // FOUND" en /info más adelante (el backend seguía validando con el
+    // mercado anterior pese a que visualmente ya se veía el nuevo).
+    // ⚠️ Esta clase también se usa en el flujo de Enroll, donde todavía no
+    // existe un ShoppingCart en este punto — ese PUT nunca se dispara ahí.
+    // Por eso la espera es "best-effort" (.catch): si llega, confirma que el
+    // mercado ya persistió antes de seguir; si no llega (Enroll), no bloquea
+    // el flujo y se sigue confiando en el "networkidle" de abajo, que es lo
+    // que ya funcionaba para ese caso.
+    await Promise.all([
+      this.page
+        .waitForResponse(
+          (res) =>
+            /\/ShoppingCart\/\d+\/MarketId/.test(res.url()) &&
+            res.request().method() === "PUT",
+          { timeout: 15000 },
+        )
+        .catch(() => null),
+      this.btnYes.click(),
+    ]);
 
     // Modal se cierra y página recarga con idioma por defecto del mercado
     await expect(this.btnYes).not.toBeVisible({ timeout: 15000 });

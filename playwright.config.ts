@@ -6,11 +6,20 @@ const isCI = !!process.env["CI"];
 const { deviceScaleFactor: _chromeDsf, ...desktopChromeNoScale } =
   devices["Desktop Chrome"];
 
+// ✅ Carpeta del reporte HTML por corrida — nunca se sobrescribe la
+// anterior, para poder guardar/compartir el historial de reportes con el
+// equipo. Los scripts ScriptRun-*.ps1 fijan REPORT_DIR con un nombre
+// descriptivo (entorno + fecha); si se corre directo sin pasar por ellos,
+// se genera una carpeta con timestamp igual de única.
+const reportDir =
+  process.env["REPORT_DIR"] ||
+  `playwright-report/run-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: false,
   workers: 1,
-  retries: 1,
+  retries: 0,
   timeout: 120000,
 
   reporter: [
@@ -18,7 +27,7 @@ export default defineConfig({
       "html",
       {
         open: "never",
-        outputFolder: "playwright-report",
+        outputFolder: reportDir,
       },
     ],
     ["list"],

@@ -1,10 +1,6 @@
 import { Page, Locator } from "@playwright/test";
 import { EnrollCheckoutPage, OpenInvoiceDetails } from "./EnrollCheckoutPage";
-import {
-  MarketLabels,
-  defaultLabels,
-  translateEnrollBirthMonth,
-} from "../../fixtures/marketLabels";
+import { MarketLabels, defaultLabels } from "../../fixtures/marketLabels";
 import { PaymentProvider } from "../../fixtures/paymentCases";
 
 export class EnrollCheckoutPageAsia extends EnrollCheckoutPage {
@@ -13,11 +9,6 @@ export class EnrollCheckoutPageAsia extends EnrollCheckoutPage {
   constructor(page: Page, labels: MarketLabels = defaultLabels) {
     super(page, labels);
     this.inputSSN = page.locator("#GovermentId");
-  }
-
-  override async fillBirthDate(month: string, day: string, year: string) {
-    const translatedMonth = translateEnrollBirthMonth(month, this.labels);
-    await super.fillBirthDate(translatedMonth, day, year);
   }
 
   private async fillSSNIfPresent(ssn: string) {
